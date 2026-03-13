@@ -22,4 +22,5 @@ else
   echo "Warning: virtualenv not found. Please activate your venv and rerun." >&2
 fi
 
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver 127.0.0.1:8080
+

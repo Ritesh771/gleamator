@@ -5,7 +5,9 @@ export default function Header() {
   const { user, logout } = useAuth()
   return (
     <header className="app-header">
-      <div className="brand">Gleamator Technology ERP</div>
+      <div className="brand">
+        <img src="/Gleamator-Logo-Transparent.png" className="brand-logo" alt="Gleamator" />
+      </div>
       <div className="header-actions">
         {user ? (
           <>

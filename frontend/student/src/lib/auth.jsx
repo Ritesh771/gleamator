@@ -4,6 +4,7 @@ import api from './api'
 const AuthContext = createContext(null)
 
 let refreshPromise = null
+let lastFailedRefreshAt = 0
 
 export function AuthProvider({ children }) {
   const [access, setAccess] = useState(null)
@@ -55,6 +56,11 @@ export function AuthProvider({ children }) {
 
   async function refreshToken() {
     const refresh = localStorage.getItem('refresh')
+    const now = Date.now()
+    // if we recently failed, short-circuit to avoid spamming the server
+    if (lastFailedRefreshAt && (now - lastFailedRefreshAt) < 30000) {
+      throw new Error('recent refresh failure, backing off')
+    }
     if (!refresh) throw new Error('no refresh')
     if (!refreshPromise) {
       refreshPromise = api.post('token/refresh/', { refresh }).then((r) => {
@@ -63,6 +69,8 @@ export function AuthProvider({ children }) {
         refreshPromise = null
         return tokens
       }).catch((err) => {
+        // set backoff marker so we don't retry immediately
+        lastFailedRefreshAt = Date.now()
         refreshPromise = null
         throw err
       })

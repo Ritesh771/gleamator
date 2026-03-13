@@ -1,16 +1,23 @@
 import React from 'react'
 import Sparkline from './Sparkline'
 
-export default function StatsCard({ title, value, meta, spark = [] }) {
+export default function StatsCard({ title, value, meta, spark = [], variant = 'default', icon = null }) {
   return (
-    <div className="stat-card">
-      <div className="stat-title">{title}</div>
-      <div className="stat-value">{value}</div>
+    <div className={`stat-card stat-card--${variant}`}>
+      <div className="stat-card-head">
+        {icon && <div className="stat-icon" aria-hidden>{icon}</div>}
+        <div>
+          <div className="stat-title">{title}</div>
+          <div className="stat-value">{value}</div>
+        </div>
+      </div>
+
       {spark && spark.length > 0 && (
         <div style={{ marginTop: 10 }}>
           <Sparkline data={spark} width={180} height={36} color="#7c3aed" />
         </div>
       )}
+
       {meta && <div className="stat-meta">{meta}</div>}
     </div>
   )

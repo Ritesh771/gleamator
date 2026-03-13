@@ -126,10 +126,27 @@ def token_refresh(request):
     except Exception:
         return _json({'error': 'invalid json'}, status=400)
     token = data.get('refresh')
+    # allow passing refresh in Authorization header as fallback
+    if not token:
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header.split(' ', 1)[1]
     if not token:
         return _json({'error': 'refresh token required'}, status=400)
+    # debug: show token preview and attempt to decode with exception logging
+    try:
+        print('token_refresh called; token_preview=', (token or '')[:60])
+    except Exception:
+        pass
     payload = decode_jwt(token)
     if not payload or payload.get('type') != 'refresh':
+        try:
+            import jwt as _jwt
+            # attempt decode to capture exception
+            _jwt.decode(token, settings.SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        except Exception as e:
+            print('token_refresh: jwt.decode error:', repr(e))
+        print('token_refresh: invalid refresh token or wrong type; token_preview=', (token or '')[:60])
         return _json({'error': 'invalid refresh token'}, status=401)
     jti = payload.get('jti')
     try:
@@ -280,11 +297,50 @@ def faculty_list_create(request):
         out = [{
             'id': f.id,
             'username': f.user.username,
+            'first_name': f.user.first_name,
+            'last_name': f.user.last_name,
             'email': f.user.email,
             'department': f.department.name if f.department else None,
+            'department_id': f.department.id if f.department else None,
+            'department_code': f.department.code if f.department else None,
             'designation': f.designation,
         } for f in page_qs]
         return _json({'results': out, 'meta': meta})
+
+
+# HODs list (returns hod user + department)
+@csrf_exempt
+@require_auth(allowed=['ADMIN'])
+def hods_list_create(request):
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    search = request.GET.get('search')
+    dept_filter = request.GET.get('department')
+    # iterate departments that have hod assigned
+    qs = Department.objects.select_related('hod').all()
+    if dept_filter:
+        qs = qs.filter(code__iexact=dept_filter)
+    out_list = []
+    for dept in qs:
+        if not dept.hod:
+            continue
+        hod = dept.hod
+        if search:
+            if search.lower() not in (hod.username or '').lower() and search.lower() not in (hod.first_name or '').lower() and search.lower() not in (hod.last_name or '').lower():
+                continue
+        out_list.append({
+            'id': hod.id,
+            'username': hod.username,
+            'first_name': hod.first_name,
+            'last_name': hod.last_name,
+            'email': hod.email,
+            'department': dept.name,
+            'department_id': dept.id,
+            'department_code': dept.code,
+        })
+    # simple pagination mimic using paginate_queryset on list
+    page_qs, meta = paginate_queryset(out_list, request)
+    return _json({'results': page_qs, 'meta': meta})
 
     if request.method == 'POST':
         try:
@@ -331,6 +387,38 @@ def users_list_create(request):
     return _json({'error': 'method not allowed'}, status=405)
 
 
+@csrf_exempt
+@require_auth(allowed=['ADMIN'])
+def users_detail(request, user_id):
+    user_obj = get_object_or_404(User, id=user_id)
+
+    if request.method == 'GET':
+        return _json({'id': user_obj.id, 'username': user_obj.username, 'first_name': user_obj.first_name, 'last_name': user_obj.last_name, 'email': user_obj.email, 'role': user_obj.role})
+
+    if request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return _json({'error': 'invalid json'}, status=400)
+        user_obj.first_name = data.get('first_name', user_obj.first_name)
+        user_obj.last_name = data.get('last_name', user_obj.last_name)
+        user_obj.email = data.get('email', user_obj.email)
+        # allow role change
+        if data.get('role'):
+            user_obj.role = data.get('role')
+        # allow password update (hash it)
+        if data.get('password'):
+            user_obj.password = make_password(data.get('password'))
+        user_obj.save()
+        return _json({'status': 'updated'})
+
+    if request.method == 'DELETE':
+        user_obj.delete()
+        return _json({'status': 'deleted'})
+
+    return _json({'error': 'method not allowed'}, status=405)
+
+
 # Faculty detail (get/update/delete)
 @csrf_exempt
 @require_auth(allowed=['ADMIN','HOD'])
@@ -351,6 +439,20 @@ def faculty_detail(request, faculty_id):
             data = json.loads(request.body)
         except Exception:
             return _json({'error': 'invalid json'}, status=400)
+        # handle department change if provided
+        dept_id = data.get('department_id')
+        if dept_id is not None:
+            try:
+                new_dept = Department.objects.get(id=int(dept_id))
+            except Exception:
+                return _json({'error': 'invalid department_id'}, status=400)
+            # HOD may only operate within their department
+            if user.role == 'HOD':
+                hod_dept = Department.objects.filter(hod=user).first()
+                if not hod_dept or new_dept != hod_dept:
+                    return _json({'error': 'forbidden'}, status=403)
+            faculty.department = new_dept
+
         faculty.user.first_name = data.get('first_name', faculty.user.first_name)
         faculty.user.last_name = data.get('last_name', faculty.user.last_name)
         faculty.user.email = data.get('email', faculty.user.email)
@@ -739,3 +841,16 @@ def stats_overview(request):
             counts += 1
     avg_attendance = int(totals / (counts or 1)) if counts else None
     return _json({'departments': total_departments, 'students': total_students, 'faculty': total_faculty, 'average_attendance': avg_attendance})
+
+
+@csrf_exempt
+@require_auth(allowed=['ADMIN'])
+def stats_admin(request):
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    total_users = User.objects.count()
+    admins = User.objects.filter(role='ADMIN').count()
+    faculty = Faculty.objects.count()
+    students = Student.objects.count()
+    departments = Department.objects.count()
+    return _json({'total_users': total_users, 'admins': admins, 'faculty': faculty, 'students': students, 'departments': departments})

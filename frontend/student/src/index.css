@@ -1,0 +1,102 @@
+:root {
+  --bg: #ffffff;
+  --muted: #6b7280;
+  --text: #0f172a;
+  --card: #ffffff;
+  --panel: #f8fafc;
+  --accent: #7c3aed; /* purple */
+  --accent-2: #a78bfa;
+  --border: #e6e9ef;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: light;
+  color: var(--text);
+  background-color: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, var(--bg), #fbfdff);
+}
+
+/* App layout */
+.app-root { display: flex; min-height: 100vh; }
+.app-main { flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+.app-content { padding: 20px; flex: 1; overflow: auto; }
+
+/* Fixed header and sidebar */
+.app-header { height: 60px; position: fixed; top: 0; left: 0; right: 0; z-index: 40 }
+.app-sidebar { width: 240px; position: fixed; top: 60px; left: 0; bottom: 0; overflow: auto; padding: 20px; background: var(--panel); color: var(--text); border-right: 1px solid var(--border) }
+.app-main { margin-left: 240px; padding-top: 60px }
+
+.sidebar-inner { max-width: 220px }
+.sidebar-title { margin: 0 0 8px 0; font-weight: 700 }
+.sidebar-greeting { margin-bottom: 12px; color: var(--muted) }
+.sidebar-nav { list-style: none; padding: 0; margin: 0 }
+.sidebar-nav li { margin: 8px 0 }
+.sidebar-nav a { color: var(--text); text-decoration: none }
+.sidebar-nav a:hover { color: var(--accent) }
+
+.app-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--card); color: var(--text); border-bottom: 1px solid var(--border); box-shadow: 0 1px 0 rgba(16,24,40,0.02); }
+.app-header .brand { font-weight: 700 }
+.app-header .header-actions { display: flex; gap: 8px; align-items: center }
+.btn.small { padding: 6px 10px; font-size: 0.9rem }
+
+/* Sidebar styling override to be responsive */
+aside { min-height: 100vh; }
+@media (max-width: 800px) {
+  .app-sidebar { display: none }
+  .app-main { margin-left: 0; padding-top: 60px }
+  .app-root { flex-direction: column }
+}
+
+/* Forms and tables */
+input, select { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); margin-right: 8px }
+table { border-collapse: collapse; width: 100%; margin-top: 12px }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.04) }
+.card { background: var(--card); padding: 14px; border-radius: 10px; box-shadow: 0 6px 18px rgba(16,24,40,0.06); border: 1px solid rgba(16,24,40,0.04) }
+
+button {
+  border-radius: 10px;
+  border: 1px solid transparent;
+  padding: 0.7em 1.4em;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  background-color: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+button:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(124,58,237,0.14) }
+button:focus,
+button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
+
+/* Auth / Login specific styles */
+.auth-page { display: flex; min-height: 100vh }
+.auth-left { flex: 1; background: linear-gradient(180deg,var(--accent),var(--accent-2)); color: white; display:flex; align-items:center; justify-content:center; padding: 48px }
+.auth-left .hero { max-width: 520px; text-align: left }
+.auth-left h1 { margin: 0 0 12px 0; font-size: 2.6rem }
+.auth-left p { color: rgba(255,255,255,0.95) }
+.auth-right { width: 520px; display:flex; align-items:center; justify-content:center; padding: 48px }
+.login-card { width:100%; background: var(--card); border-radius: 12px; padding: 32px; box-shadow: 0 12px 40px rgba(16,24,40,0.08); border: 1px solid var(--border) }
+.login-card h2 { margin: 0 0 8px 0 }
+.login-form { display:flex; flex-direction:column; gap:12px; margin-top: 12px }
+.login-form input { width:100% }
+.login-meta { display:flex; justify-content:space-between; align-items:center; font-size:0.9rem; color: var(--muted) }
+.forgot { color: var(--accent); text-decoration:none }
+
+.stats-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin-bottom: 18px }
+.stat-card { padding: 16px; border-radius: 10px; background: linear-gradient(180deg, #fff, var(--panel)); border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(16,24,40,0.04) }
+.stat-title { color: var(--muted); font-size: 0.9rem }
+.stat-value { font-size: 1.6rem; font-weight: 700; margin-top: 6px }
+.stat-meta { color: var(--muted); font-size: 0.85rem; margin-top: 6px }
+
+h1 { font-size: 3.2em; line-height: 1.1; }

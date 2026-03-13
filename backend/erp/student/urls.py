@@ -1,0 +1,38 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('login/', views.login_view, name='api-login'),
+    path('register/', views.register_view, name='api-register'),
+    path('token/refresh/', views.token_refresh, name='token-refresh'),
+
+    path('students/', views.students_list_create, name='students-list-create'),
+    path('students/<int:student_id>/', views.students_detail, name='students-detail'),
+
+    path('users/', views.users_list_create, name='users-list-create'),
+
+    path('faculty/', views.faculty_list_create, name='faculty-list-create'),
+    path('faculty/<int:faculty_id>/', views.faculty_detail, name='faculty-detail'),
+
+    path('subjects/', views.subjects_list_create, name='subjects-list-create'),
+
+    path('attendance/take/', views.attendance_take, name='attendance-take'),
+    path('attendance/export/', views.attendance_export, name='attendance-export'),
+    path('attendance/student/<int:student_id>/', views.attendance_student, name='attendance-student'),
+    path('attendance/report/', views.attendance_report, name='attendance-report'),
+    # Departments
+    path('departments/', views.departments_list_create, name='departments-list-create'),
+    path('departments/<int:dept_id>/', views.departments_detail, name='departments-detail'),
+    path('departments/<int:dept_id>/assign_hod/', views.assign_hod, name='departments-assign-hod'),
+
+    # Faculty-Subject assignments
+    path('faculty-subjects/', views.facultysubject_list_create, name='facultysubject-list-create'),
+
+    # Marks
+    path('marks/upload/', views.upload_marks, name='marks-upload'),
+    path('marks/student/<int:student_id>/', views.marks_student, name='marks-student'),
+
+    # Stats
+    path('stats/department/<str:code>/', views.stats_department, name='stats-department'),
+    path('stats/overview/', views.stats_overview, name='stats-overview'),
+]

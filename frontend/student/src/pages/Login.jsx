@@ -26,27 +26,29 @@ export default function Login() {
     <div className="auth-page">
       <div className="auth-left">
         <div className="hero">
-          <img src="/Company-cuate.svg" alt="Gleamator" style={{ width: 180, marginBottom: 18 }} />
-          <h1>Gleamator Campus ERP</h1>
-          <p>Secure campus management for students, faculty, and administrators.</p>
-          <ul className="hero-features">
-            <li>Student & Faculty Dashboards</li>
-            <li>Attendance, Marks & Reporting</li>
-            <li>Role-based Access and Admin Tools</li>
-          </ul>
-          <p style={{ marginTop: 18, opacity: 0.9, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <img src="/Gleamator-Logo-Transparent.png" alt="Gleamator" style={{ width: 22 }} />
-            <span>Built by Ritesh N</span>
-          </p>
+          <div className="hero-copy">
+            <h1>Gleamator Campus ERP</h1>
+            <div className="hero-illustration-wrapper">
+              <img src="/Company-cuate.svg" alt="Gleamator" className="hero-illustration" />
+            </div>
+            <p>Secure campus management for students, faculty, and administrators.</p>
+            <ul className="hero-features">
+              <li>Student & Faculty Dashboards</li>
+              <li>Attendance, Marks & Reporting</li>
+              <li>Role-based Access and Admin Tools</li>
+            </ul>
+            <p className="hero-footer">
+              <img src="/Gleamator-Logo-Transparent.png" alt="Gleamator" className="hero-logo-small" />
+              <span>Built by Ritesh N</span>
+            </p>
+          </div>
         </div>
       </div>
       <div className="auth-right">
+          <img src="/Gleamator-Logo-Transparent.png" alt="Gleamator" className="login-logo-large" />
         <div className="login-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <img src="/Gleamator-Logo-Transparent.png" alt="Gleamator" style={{ width: 36 }} />
-            <h2>Login</h2>
-          </div>
-          <div style={{ color: 'var(--muted)', marginBottom: 8 }}>Sign in to access your account</div>
+          <h2 style={{ textAlign: 'center', margin: '0 0 8px 0' }}>Login</h2>
+          <div style={{ color: 'var(--muted)', marginBottom: 8, textAlign: 'center' }}>Sign in to access your account</div>
           {error && <Alert>{error}</Alert>}
           <form onSubmit={submit} className="login-form">
             <input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />

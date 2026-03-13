@@ -44,7 +44,7 @@ export default function Sidebar() {
         <div className="sidebar-top">
           <h3 className="sidebar-title"></h3>
         </div>
-        {user && <div className="sidebar-greeting">Hi, {user.username}</div>}
+        {user && <div className="sidebar-greeting">Welcome, {user.username}</div>}
         <nav>
           <ul className="sidebar-nav">
             <li><NavLink to="/" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="home"/></span><span className="label">Home</span></NavLink></li>
@@ -59,7 +59,8 @@ export default function Sidebar() {
             {user?.role === 'HOD' && (
               <>
                 <li><NavLink to="/hod/departments" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="departments"/></span><span className="label">Departments</span></NavLink></li>
-                <li><NavLink to="/students" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="students"/></span><span className="label">Students</span></NavLink></li>
+                <li><NavLink to="/hod/faculty" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="faculty"/></span><span className="label">Faculty</span></NavLink></li>
+                <li><NavLink to="/hod/students" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="students"/></span><span className="label">Students</span></NavLink></li>
               </>
             )}
             {user?.role === 'FACULTY' && (

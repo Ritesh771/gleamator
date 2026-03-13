@@ -13,6 +13,8 @@ import Layout from './components/Layout'
 import TakeAttendance from './pages/attendance/TakeAttendance'
 import UploadMarks from './pages/marks/UploadMarks'
 import HodDepartments from './pages/hod/HodDepartments'
+import HodFaculty from './pages/hod/HodFaculty'
+import HodStudents from './pages/hod/HodStudents'
 import AdminUsers from './pages/admin/AdminUsers'
 import StudentProfile from './pages/student/StudentProfile'
 import AdminDepartments from './pages/admin/AdminDepartments'
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/attendance/take" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><TakeAttendance /></ProtectedRoute></Layout>} />
           <Route path="/marks/upload" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><UploadMarks /></ProtectedRoute></Layout>} />
           <Route path="/hod/departments" element={<Layout><ProtectedRoute allowedRoles={["HOD"]}><HodDepartments /></ProtectedRoute></Layout>} />
+          <Route path="/hod/faculty" element={<Layout><ProtectedRoute allowedRoles={["HOD"]}><HodFaculty /></ProtectedRoute></Layout>} />
+          <Route path="/hod/students" element={<Layout><ProtectedRoute allowedRoles={["HOD"]}><HodStudents /></ProtectedRoute></Layout>} />
           <Route path="/admin/users" element={<Layout><ProtectedRoute allowedRoles={["ADMIN"]}><AdminUsers /></ProtectedRoute></Layout>} />
           <Route path="/admin/departments" element={<Layout><ProtectedRoute allowedRoles={["ADMIN"]}><AdminDepartments /></ProtectedRoute></Layout>} />
           <Route path="/admin/faculty" element={<Layout><ProtectedRoute allowedRoles={["ADMIN"]}><AdminFaculty /></ProtectedRoute></Layout>} />

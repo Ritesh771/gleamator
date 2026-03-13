@@ -657,12 +657,22 @@ def attendance_export(request):
 
 # Departments
 @csrf_exempt
-@require_auth(allowed=['ADMIN'])
+@require_auth(allowed=None)
 def departments_list_create(request):
+    # GET: allow ADMIN to list all departments; HOD sees only their department
     if request.method == 'GET':
-        qs = Department.objects.all()
-        out = [{'id': d.id, 'name': d.name, 'code': d.code, 'hod': d.hod.username if d.hod else None} for d in qs]
-        return _json(out)
+        user = getattr(request, 'request_user', None)
+        if user and user.role == 'ADMIN':
+            qs = Department.objects.all()
+            out = [{'id': d.id, 'name': d.name, 'code': d.code, 'hod': d.hod.username if d.hod else None} for d in qs]
+            return _json(out)
+        if user and user.role == 'HOD':
+            dept = Department.objects.filter(hod=user).first()
+            if not dept:
+                return _json({'error': 'no department assigned'}, status=404)
+            d = dept
+            return _json([{'id': d.id, 'name': d.name, 'code': d.code, 'hod': d.hod.username if d.hod else None}])
+        return _json({'error': 'forbidden'}, status=403)
 
     if request.method == 'POST':
         try:
@@ -680,11 +690,19 @@ def departments_list_create(request):
 
 
 @csrf_exempt
-@require_auth(allowed=['ADMIN'])
+@require_auth(allowed=None)
 def departments_detail(request, dept_id):
     dept = get_object_or_404(Department, id=dept_id)
+    user = getattr(request, 'request_user', None)
     if request.method == 'GET':
-        return _json({'id': dept.id, 'name': dept.name, 'code': dept.code, 'hod': dept.hod.username if dept.hod else None})
+        # ADMIN can view any department; HOD can view only their own dept
+        if user and user.role == 'ADMIN':
+            return _json({'id': dept.id, 'name': dept.name, 'code': dept.code, 'hod': dept.hod.username if dept.hod else None})
+        if user and user.role == 'HOD':
+            if dept.hod and dept.hod.id == user.id:
+                return _json({'id': dept.id, 'name': dept.name, 'code': dept.code, 'hod': dept.hod.username if dept.hod else None})
+            return _json({'error': 'forbidden'}, status=403)
+        return _json({'error': 'forbidden'}, status=403)
 
     if request.method == 'PUT':
         try:

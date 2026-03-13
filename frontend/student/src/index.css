@@ -126,6 +126,35 @@ button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
 @media (max-width: 420px) {
   .login-logo-large { width: 140px; max-width: 60%; margin-bottom: 12px }
 }
+
+/* Reset / Forgot Password styles (two-column: dark left, purple right) */
+.reset-page { display:flex; min-height:100vh; align-items:stretch }
+.reset-left { flex:1 1 50%; background: #ffffff; color: var(--text); display:flex; align-items:center; justify-content:center; padding:56px }
+.reset-left .reset-content { max-width:600px; width:100%; }
+.reset-left h2 { margin-top: 18px; font-size: 1.6rem }
+.reset-left .muted { color: var(--muted); margin-bottom: 16px }
+.steps { display:flex; gap:18px; justify-content:center; margin-bottom:18px }
+.step { display:flex; flex-direction:column; align-items:center; gap:8px; opacity:0.5; text-align:center }
+.step.active { opacity:1 }
+.step .icon { width:44px; height:44px; border-radius:999px; display:flex; align-items:center; justify-content:center; background: rgba(16,24,40,0.04); color: var(--text) }
+.step .label { font-size:0.85rem; font-weight:700; color: var(--text) }
+.step .label span { display:block; font-weight:400; font-size:0.75rem; color: var(--muted) }
+.reset-form { display:flex; flex-direction:column; gap:12px; margin-top: 10px }
+.reset-form input { padding:14px 16px; border-radius:10px; border:1px solid var(--border); background: var(--card); color: var(--text) }
+.send-btn { width:100%; padding:12px; border-radius:10px; background: #a78bfa; border:none; color:#111; font-weight:700 }
+.sent-confirm { text-align:left; padding: 8px 0 }
+
+.reset-right { flex:1 1 50%; background: linear-gradient(180deg,#6d28d9,#8b5cf6); color: white; display:flex; align-items:center; justify-content:center; padding:56px }
+.right-copy { max-width:520px; text-align:center }
+.right-copy h1 { margin:0 0 8px 0; font-size:2rem }
+.illustration-wrapper { margin:24px 0 }
+.illustration-wrapper img { width:280px; max-width:100% }
+.right-footer { margin-top: 18px; opacity: 0.9; font-size:0.9rem }
+
+@media (max-width:900px) {
+  .reset-page { flex-direction: column }
+  .reset-left, .reset-right { padding: 28px }
+}
 .login-form { display:flex; flex-direction:column; gap:14px; margin-top: 16px }
 .login-form input { width:100%; padding: 14px 16px; font-size: 1rem; border-radius: 10px }
 .login-meta { display:flex; justify-content:space-between; align-items:center; font-size:0.9rem; color: var(--muted) }

@@ -2,6 +2,7 @@ import React from 'react'
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './lib/auth'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
 import Dashboard from './pages/Dashboard'
 import Students from './pages/common/Students'
 import ProtectedRoute from './lib/ProtectedRoute'
@@ -30,6 +31,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Layout><RoleHome /></Layout>} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/students" element={<Layout><ProtectedRoute allowedRoles={["ADMIN","HOD","FACULTY"]}><Students /></ProtectedRoute></Layout>} />
           <Route path="/attendance/take" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><TakeAttendance /></ProtectedRoute></Layout>} />
           <Route path="/marks/upload" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><UploadMarks /></ProtectedRoute></Layout>} />

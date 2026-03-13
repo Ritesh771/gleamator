@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
 import Alert from '../components/Alert'
 
@@ -57,7 +57,7 @@ export default function Login() {
               <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <input type="checkbox" /> Remember 
               </label>
-              <a className="forgot" href="#">Forgot Password?</a>
+              <Link className="forgot" to="/forgot-password">Forgot Password?</Link>
             </div>
             <button type="submit">Login</button>
           </form>

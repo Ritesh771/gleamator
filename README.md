@@ -8,9 +8,7 @@ Portfolio: https://riteshn.me/
 
 This repository contains the backend (Django) and frontend (Vite + React) for the Gleamator student ERP project.
 
-Visit my portfolio for more projects and contact information:
 
-https://riteshn.me/
 
 ---
 

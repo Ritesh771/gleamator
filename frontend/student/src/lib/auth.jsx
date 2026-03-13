@@ -12,14 +12,28 @@ export function AuthProvider({ children }) {
   const [initializing, setInitializing] = useState(true)
 
   useEffect(() => {
+    const storedAccess = localStorage.getItem('access')
     const storedRefresh = localStorage.getItem('refresh')
+    // if we have a stored access token, use it (faster startup)
+    if (storedAccess) {
+      setAccess(storedAccess)
+      try {
+        const payload = parseJwt(storedAccess)
+        setUser({ id: payload.user_id || payload.sub, username: payload.username || payload.user, role: payload.role })
+      } catch (e) {}
+      // ensure axios has the header
+      try { api.defaults.headers.common.Authorization = `Bearer ${storedAccess}` } catch (e) {}
+      setInitializing(false)
+      return
+    }
+
+    // otherwise try refresh if present
     if (!access && storedRefresh) {
       // try to obtain new access on load
       refreshToken().catch(() => {
         localStorage.removeItem('refresh')
       }).finally(() => setInitializing(false))
-    }
-    else {
+    } else {
       setInitializing(false)
     }
   }, [])
@@ -33,6 +47,11 @@ export function AuthProvider({ children }) {
       } catch (e) {
         // ignore
       }
+    }
+    // persist tokens so reloads can restore session
+    if (newAccess) {
+      try { localStorage.setItem('access', newAccess) } catch (e) {}
+      try { api.defaults.headers.common.Authorization = `Bearer ${newAccess}` } catch (e) {}
     }
     if (refresh) localStorage.setItem('refresh', refresh)
   }
@@ -51,6 +70,8 @@ export function AuthProvider({ children }) {
     setAccess(null)
     setUser(null)
     localStorage.removeItem('refresh')
+    localStorage.removeItem('access')
+    try { delete api.defaults.headers.common.Authorization } catch (e) {}
     setInitializing(false)
   }
 

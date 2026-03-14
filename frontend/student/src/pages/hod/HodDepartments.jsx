@@ -73,7 +73,17 @@ export default function HodDepartments() {
             <div>
               <h4>Faculty</h4>
               <ul>
-                {faculty.map((f) => (<li key={f.id}>{f.user?.first_name || f.first_name} {f.user?.last_name || f.last_name} ({f.user?.username || ''})</li>))}
+                {faculty.map((f) => (
+                  <li key={f.id}>
+                    {f.user?.first_name || f.first_name} {f.user?.last_name || f.last_name}
+                    {(f.user?.username || f.username) && (
+                      <>{' '}({f.user?.username || f.username})</>
+                    )}
+                    {f.designation && (
+                      <>{' '}— {f.designation}</>
+                    )}
+                  </li>
+                ))}
               </ul>
             </div>
           )}

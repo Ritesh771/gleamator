@@ -5,13 +5,29 @@ import StatsCard from '../../components/StatsCard'
 import api from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 
+function AnimatedNumber({ value, duration = 800, format = v => v }) {
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    let start = null
+    const from = 0
+    const to = Number(String(value).replace(/,/g, '')) || 0
+    function step(ts) {
+      if (!start) start = ts
+      const t = Math.min(1, (ts - start) / duration)
+      const cur = Math.round(from + (to - from) * t)
+      setDisplay(cur)
+      if (t < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+  }, [value, duration])
+  return <>{format(display)}</>
+}
+
 export default function HodDashboard() {
   const { user } = useAuth()
   const [dept, setDept] = useState(null)
-  const [stats, setStats] = useState([
-    { title: 'Dept Students', value: '—', meta: 'Active students' },
-    { title: 'Dept Faculty', value: '—', meta: 'Faculty count' }
-  ])
+  const [stats, setStats] = useState([])
+  const [deptStats, setDeptStats] = useState(null)
 
   useEffect(() => { if (user) loadDept() }, [user])
 
@@ -27,26 +43,40 @@ export default function HodDashboard() {
       })
       if (my) {
         setDept(my)
-        await loadStatsForDept(my.id)
+        await loadStatsForDept(my)
       }
     } catch (e) {
       console.error('failed to load department', e)
     }
   }
 
-  async function loadStatsForDept(deptIdOrObj) {
+  async function loadStatsForDept(deptObj) {
     try {
-      const deptCode = typeof deptIdOrObj === 'object' ? deptIdOrObj.code : deptIdOrObj
-      const s1 = await api.get('students/', { params: { department: deptCode, page: 1, page_size: 1 } })
-      const studentsCount = s1.data.count || (Array.isArray(s1.data) ? s1.data.length : undefined)
-      const f = await api.get('faculty/', { params: { department: deptCode, page: 1, page_size: 1 } })
-      const facultyCount = f.data.count || (Array.isArray(f.data) ? f.data.length : undefined)
+      const code = deptObj.code
+      // try department stats endpoint
+      const res = await api.get(`/stats/department/${code}/`)
+      const d = res.data || {}
+      setDeptStats(d)
       setStats([
-        { title: 'Dept Students', value: studentsCount != null ? String(studentsCount) : '—', meta: 'Active students' },
-        { title: 'Dept Faculty', value: facultyCount != null ? String(facultyCount) : '—', meta: 'Faculty count' }
+        { title: 'Dept Students', value: d.students != null ? d.students : '—', meta: 'Active students', variant: 'orange', spark: [8,9,11,10,14,13,15] },
+        { title: 'Dept Faculty', value: d.faculty != null ? d.faculty : '—', meta: 'Faculty count', variant: 'blue', spark: [2,3,3,4,5,4,6] },
+        { title: 'Avg Attendance', value: d.average_attendance != null ? `${d.average_attendance}%` : '—', meta: 'Department average', variant: 'green', spark: [1,2,1,3,2,2,1] }
       ])
     } catch (e) {
-      console.error('failed to load stats', e)
+      console.error('failed to load stats for dept', e)
+      // fallback: count via students/faculty endpoints
+      try {
+        const s1 = await api.get('students/', { params: { department: deptObj.code, page: 1, page_size: 1 } })
+        const studentsCount = s1.data.count || (Array.isArray(s1.data) ? s1.data.length : undefined)
+        const f = await api.get('faculty/', { params: { department: deptObj.code, page: 1, page_size: 1 } })
+        const facultyCount = f.data.count || (Array.isArray(f.data) ? f.data.length : undefined)
+        setStats([
+          { title: 'Dept Students', value: studentsCount != null ? String(studentsCount) : '—', meta: 'Active students', variant: 'orange' },
+          { title: 'Dept Faculty', value: facultyCount != null ? String(facultyCount) : '—', meta: 'Faculty count', variant: 'blue' }
+        ])
+      } catch (e2) {
+        console.error('fallback stats failed', e2)
+      }
     }
   }
 
@@ -54,15 +84,80 @@ export default function HodDashboard() {
     <Layout>
       <div style={{ padding: 24 }}>
         <h2>HOD Dashboard{dept ? ` — ${dept.name}` : ''}</h2>
+
         <div className="stats-grid">
-          {stats.map(s => <StatsCard key={s.title} {...s} />)}
+          {stats.length === 0 && (
+            <div className="card">Loading stats…</div>
+          )}
+          {stats.map((s) => (
+            <StatsCard key={s.title} title={s.title} value={<AnimatedNumber value={s.value === '—' ? 0 : s.value} format={v => (typeof s.value === 'string' && s.value.endsWith('%') ? `${s.value}` : v.toLocaleString())} />} meta={s.meta} variant={s.variant} spark={s.spark} />
+          ))}
         </div>
 
-        <ul>
-          <li><Link to="/hod/students">Department Students</Link></li>
-          <li><Link to="/hod/faculty">Department Faculty</Link></li>
-          <li><Link to="/hod/departments">Departments</Link></li>
-        </ul>
+        <div style={{ marginTop: 18 }}>
+          <h3>Quick Actions</h3>
+          <div className="admin-tools-grid">
+            <Link to="/hod/students" className="admin-tool-card">
+              <div className="tool-icon">👥</div>
+              <div>
+                <div className="tool-title">Department Students</div>
+                <div className="meta">View and manage department students</div>
+              </div>
+            </Link>
+            <Link to="/hod/faculty" className="admin-tool-card">
+              <div className="tool-icon">🎓</div>
+              <div>
+                <div className="tool-title">Department Faculty</div>
+                <div className="meta">View faculty in your department</div>
+              </div>
+            </Link>
+            <Link to="/hod/courses" className="admin-tool-card">
+              <div className="tool-icon">📚</div>
+              <div>
+                <div className="tool-title">Department Courses</div>
+                <div className="meta">Create and assign courses</div>
+              </div>
+            </Link>
+            <Link to="/hod/departments" className="admin-tool-card">
+              <div className="tool-icon">🏛️</div>
+              <div>
+                <div className="tool-title">Departments</div>
+                <div className="meta">Browse departments</div>
+              </div>
+            </Link>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 22 }}>
+          <h3>Department</h3>
+          {dept ? (
+            <div className="card dept-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div className="dept-avatar">{(dept.name || '').slice(0,2).toUpperCase()}</div>
+                <div>
+                  <div style={{ fontWeight: 800 }}>{dept.name}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: 13 }}>{dept.code}</div>
+                </div>
+              </div>
+              <div className="dept-card-body">
+                <div className="dept-stat">
+                  <div style={{ fontWeight:700 }}><AnimatedNumber value={deptStats?.students || 0} format={v => v.toLocaleString()} /></div>
+                  <div style={{ color: 'var(--muted)', fontSize: 12 }}>Students</div>
+                </div>
+                <div className="dept-stat">
+                  <div style={{ fontWeight:700 }}><AnimatedNumber value={deptStats?.faculty || 0} /></div>
+                  <div style={{ color: 'var(--muted)', fontSize: 12 }}>Faculty</div>
+                </div>
+                <div className="dept-attendance">
+                  <div style={{ fontWeight:700 }}>{deptStats?.average_attendance != null ? `${deptStats.average_attendance}%` : '—'}</div>
+                  <div style={{ color: 'var(--muted)', fontSize: 12 }}>Avg Attendance</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div>No department assigned to your HOD account. Contact admin.</div>
+          )}
+        </div>
       </div>
     </Layout>
   )

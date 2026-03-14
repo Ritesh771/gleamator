@@ -28,6 +28,9 @@ function Icon({ name }) {
   if (name === 'marks') return (
     <svg {...common}><path d="M12 20v-6"/><path d="M8 12h8"/><path d="M6 4h12v6H6z"/></svg>
   )
+  if (name === 'courses') return (
+    <svg {...common}><path d="M4 6h16v12H4z"/><path d="M4 10h16"/><path d="M8 6v12"/></svg>
+  )
   if (name === 'profile') return (
     <svg {...common}><circle cx="12" cy="8" r="3"/><path d="M5.5 20a6.5 6.5 0 0 1 13 0"/></svg>
   )
@@ -58,9 +61,10 @@ export default function Sidebar() {
             )}
             {user?.role === 'HOD' && (
               <>
-                <li><NavLink to="/hod/departments" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="departments"/></span><span className="label">Departments</span></NavLink></li>
+                
                 <li><NavLink to="/hod/faculty" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="faculty"/></span><span className="label">Faculty</span></NavLink></li>
                 <li><NavLink to="/hod/students" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="students"/></span><span className="label">Students</span></NavLink></li>
+                <li><NavLink to="/hod/courses" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="courses"/></span><span className="label">Courses</span></NavLink></li>
               </>
             )}
             {user?.role === 'FACULTY' && (

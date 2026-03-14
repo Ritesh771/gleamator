@@ -17,6 +17,7 @@ urlpatterns = [
     path('hods/', views.hods_list_create, name='hods-list-create'),
 
     path('subjects/', views.subjects_list_create, name='subjects-list-create'),
+    path('subjects/<int:subject_id>/', views.subjects_detail, name='subjects-detail'),
 
     path('attendance/take/', views.attendance_take, name='attendance-take'),
     path('attendance/export/', views.attendance_export, name='attendance-export'),

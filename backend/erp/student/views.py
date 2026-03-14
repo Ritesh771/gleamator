@@ -6,6 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password, check_password
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 
 from .models import (
     User, Department, Faculty, Student, Subject,
@@ -180,7 +181,12 @@ def students_list_create(request):
         else:
             qs = Student.objects.select_related('user','department').all()
         if search:
-            qs = qs.filter(user__username__icontains=search) | qs.filter(usn__icontains=search)
+            qs = qs.filter(
+                Q(user__username__icontains=search) |
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(usn__icontains=search)
+            )
         if dept_filter:
             qs = qs.filter(department__code__iexact=dept_filter)
         if semester_filter:
@@ -191,6 +197,8 @@ def students_list_create(request):
         out = [{
             'id': s.id,
             'username': s.user.username,
+            'first_name': s.user.first_name,
+            'last_name': s.user.last_name,
             'usn': s.usn,
             'email': s.user.email,
             'department': s.department.name if s.department else None,
@@ -219,7 +227,7 @@ def students_list_create(request):
             return _json({'error': 'forbidden'}, status=403)
         if User.objects.filter(username=username).exists():
             return _json({'error': 'username exists'}, status=400)
-        user = User.objects.create(username=username, email=email or '', password=make_password(password), role='STUDENT')
+        user = User.objects.create(username=username, first_name=data.get('first_name',''), last_name=data.get('last_name',''), email=email or '', password=make_password(password), role='STUDENT')
         student = Student.objects.create(user=user, usn=usn or f"USN{user.id}", department=dept, semester=data.get('semester',1), section=data.get('section','A'), phone=data.get('phone',''), address=data.get('address',''), admission_date=data.get('admission_date', date.today()))
         return _json({'id': student.id, 'username': user.username})
 
@@ -245,6 +253,8 @@ def students_detail(request, student_id):
         return _json({
             'id': student.id,
             'username': student.user.username,
+            'first_name': student.user.first_name,
+            'last_name': student.user.last_name,
             'usn': student.usn,
             'email': student.user.email,
             'department': student.department.name if student.department else None,
@@ -260,6 +270,11 @@ def students_detail(request, student_id):
                 data = json.loads(req.body)
             except Exception:
                 return _json({'error': 'invalid json'}, status=400)
+            # allow updating user profile fields as well
+            student.user.first_name = data.get('first_name', student.user.first_name)
+            student.user.last_name = data.get('last_name', student.user.last_name)
+            student.user.email = data.get('email', student.user.email)
+            student.user.save()
             student.semester = data.get('semester', student.semester)
             student.section = data.get('section', student.section)
             student.phone = data.get('phone', student.phone)
@@ -306,6 +321,30 @@ def faculty_list_create(request):
             'designation': f.designation,
         } for f in page_qs]
         return _json({'results': out, 'meta': meta})
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return _json({'error': 'invalid json'}, status=400)
+        username = data.get('username')
+        password = data.get('password')
+        email = data.get('email')
+        dept_id = data.get('department_id')
+        if not dept_id:
+            return _json({'error': 'department_id required for faculty'}, status=400)
+        try:
+            dept = Department.objects.get(id=dept_id)
+        except Department.DoesNotExist:
+            return _json({'error': 'invalid department_id'}, status=400)
+        if request.request_user.role == 'HOD' and dept and dept.hod != request.request_user:
+            return _json({'error': 'forbidden'}, status=403)
+        if User.objects.filter(username=username).exists():
+            return _json({'error': 'username exists'}, status=400)
+        user = User.objects.create(username=username, first_name=data.get('first_name',''), last_name=data.get('last_name',''), email=email or '', password=make_password(password), role='FACULTY')
+        faculty = Faculty.objects.create(user=user, department=dept, designation=data.get('designation',''), phone=data.get('phone',''), joining_date=data.get('joining_date', date.today()))
+        return _json({'id': faculty.id, 'username': user.username})
+
+    return _json({'error': 'method not allowed'}, status=405)
 
 
 # HODs list (returns hod user + department)
@@ -341,31 +380,6 @@ def hods_list_create(request):
     # simple pagination mimic using paginate_queryset on list
     page_qs, meta = paginate_queryset(out_list, request)
     return _json({'results': page_qs, 'meta': meta})
-
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-        except Exception:
-            return _json({'error': 'invalid json'}, status=400)
-        username = data.get('username')
-        password = data.get('password')
-        email = data.get('email')
-        dept_id = data.get('department_id')
-        if not dept_id:
-            return _json({'error': 'department_id required for faculty'}, status=400)
-        try:
-            dept = Department.objects.get(id=dept_id)
-        except Department.DoesNotExist:
-            return _json({'error': 'invalid department_id'}, status=400)
-        if request.request_user.role == 'HOD' and dept and dept.hod != request.request_user:
-            return _json({'error': 'forbidden'}, status=403)
-        if User.objects.filter(username=username).exists():
-            return _json({'error': 'username exists'}, status=400)
-        user = User.objects.create(username=username, first_name=data.get('first_name',''), last_name=data.get('last_name',''), email=email or '', password=make_password(password), role='FACULTY')
-        faculty = Faculty.objects.create(user=user, department=dept, designation=data.get('designation',''), phone=data.get('phone',''), joining_date=data.get('joining_date', date.today()))
-        return _json({'id': faculty.id, 'username': user.username})
-
-    return _json({'error': 'method not allowed'}, status=405)
 
 
 # Users (all auth users listing for admin)
@@ -484,6 +498,19 @@ def subjects_list_create(request):
         if semester_filter:
             qs = qs.filter(semester=int(semester_filter))
         page_qs, meta = paginate_queryset(list(qs), request)
+        # include faculty assignments (semester/section) for each subject
+        subject_ids = [s.id for s in page_qs]
+        fs_qs = FacultySubject.objects.filter(subject__in=subject_ids).select_related('faculty__user')
+        assignments_by_subject = {}
+        for fs in fs_qs:
+            assignments_by_subject.setdefault(fs.subject_id, []).append({
+                'id': fs.id,
+                'faculty_id': fs.faculty.id,
+                'faculty_username': fs.faculty.user.username if fs.faculty and fs.faculty.user else None,
+                'semester': fs.semester,
+                'section': fs.section,
+            })
+
         out = [{
             'id': s.id,
             'name': s.name,
@@ -491,6 +518,7 @@ def subjects_list_create(request):
             'department': s.department.name if s.department else None,
             'semester': s.semester,
             'credits': s.credits,
+            'assignments': assignments_by_subject.get(s.id, [])
         } for s in page_qs]
         return _json({'results': out, 'meta': meta})
 
@@ -511,6 +539,65 @@ def subjects_list_create(request):
         dept = Department.objects.get(id=data.get('department_id')) if data.get('department_id') else None
         subject = Subject.objects.create(name=name, code=code, department=dept, semester=data.get('semester',1), credits=data.get('credits',3))
         return _json({'id': subject.id, 'name': subject.name})
+
+    return _json({'error': 'method not allowed'}, status=405)
+
+
+# Subject detail (GET, PUT, DELETE)
+@csrf_exempt
+def subjects_detail(request, subject_id):
+    subject = get_object_or_404(Subject, id=subject_id)
+    if request.method == 'GET':
+        # include assignments
+        fs_qs = FacultySubject.objects.filter(subject=subject).select_related('faculty__user')
+        assignments = [{'id': fs.id, 'faculty_id': fs.faculty.id, 'faculty_username': fs.faculty.user.username if fs.faculty and fs.faculty.user else None, 'semester': fs.semester, 'section': fs.section} for fs in fs_qs]
+        return _json({'id': subject.id, 'name': subject.name, 'code': subject.code, 'department': subject.department.name if subject.department else None, 'semester': subject.semester, 'credits': subject.credits, 'assignments': assignments})
+
+    if request.method == 'PUT':
+        # only admin/hod
+        auth_header = request.META.get('HTTP_AUTHORIZATION','')
+        if not auth_header.startswith('Bearer '):
+            return _json({'error': 'authentication required'}, status=401)
+        payload = decode_jwt(auth_header.split(' ',1)[1])
+        if not payload or payload.get('role') not in ['ADMIN','HOD']:
+            return _json({'error': 'forbidden'}, status=403)
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return _json({'error': 'invalid json'}, status=400)
+        name = data.get('name')
+        code = data.get('code')
+        semester = data.get('semester')
+        credits = data.get('credits')
+        if name:
+            subject.name = name
+        if code:
+            subject.code = code
+        if semester is not None:
+            try:
+                subject.semester = int(semester)
+            except Exception:
+                pass
+        if credits is not None:
+            try:
+                subject.credits = int(credits)
+            except Exception:
+                pass
+        subject.save()
+        return _json({'status': 'ok', 'id': subject.id})
+
+    if request.method == 'DELETE':
+        # only admin/hod
+        auth_header = request.META.get('HTTP_AUTHORIZATION','')
+        if not auth_header.startswith('Bearer '):
+            return _json({'error': 'authentication required'}, status=401)
+        payload = decode_jwt(auth_header.split(' ',1)[1])
+        if not payload or payload.get('role') not in ['ADMIN','HOD']:
+            return _json({'error': 'forbidden'}, status=403)
+        # delete subject and related faculty assignments
+        FacultySubject.objects.filter(subject=subject).delete()
+        subject.delete()
+        return _json({'status': 'deleted'})
 
     return _json({'error': 'method not allowed'}, status=405)
 

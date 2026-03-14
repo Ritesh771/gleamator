@@ -39,7 +39,7 @@ export default function Login() {
             </ul>
             <p className="hero-footer">
               <img src="/Gleamator-Logo-Transparent.png" alt="Gleamator" className="hero-logo-small" />
-              <span>Built by Ritesh N</span>
+              <span>Built by <a href="https://riteshn.me" target="_blank" rel="noopener noreferrer">Ritesh</a></span>
             </p>
           </div>
         </div>

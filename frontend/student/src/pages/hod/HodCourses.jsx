@@ -11,7 +11,7 @@ export default function HodCourses() {
   const [faculty, setFaculty] = useState([])
   const [form, setForm] = useState({ name: '', code: '', semester: 1, section: 'A', faculty_id: '' })
   const [editingId, setEditingId] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', code: '', semester: 1, section: 'A', faculty_id: '' })
+  const [editForm, setEditForm] = useState({ name: '', code: '', semester: 1, section: 'A', faculty_id: '', sections: [] })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmPayload, setConfirmPayload] = useState(null)
   const searchTimer = useRef(null)
@@ -82,7 +82,8 @@ export default function HodCourses() {
       code: s.code || '',
       semester: s.semester || 1,
       section: (s.assignments && s.assignments.length) ? s.assignments[0].section || 'A' : 'A',
-      faculty_id: (s.assignments && s.assignments.length) ? String(s.assignments[0].faculty_id || '') : ''
+      faculty_id: (s.assignments && s.assignments.length) ? String(s.assignments[0].faculty_id || '') : '',
+      sections: (s.assignments || []).map(a => ({ id: a.id, section: a.section || 'A', faculty_id: a.faculty_id ? String(a.faculty_id) : '' }))
     })
   }
 
@@ -90,12 +91,21 @@ export default function HodCourses() {
     if (!editForm.name.trim() || !editForm.code.trim()) { notify({ type: 'error', message: 'Name and code required' }); return }
     try {
       await api.put(`subjects/${editingId}/`, { name: editForm.name.trim(), code: editForm.code.trim(), semester: Number(editForm.semester) || 1 })
-      // create/update faculty assignment if provided
-      if (editForm.faculty_id) {
-        try {
-          await api.post('faculty-subjects/', { faculty_id: Number(editForm.faculty_id), subject_id: editingId, semester: Number(editForm.semester) || 1, section: editForm.section || 'A' })
-        } catch (e) {
-          console.error('assign failed', e)
+      // synchronize sections/assignments
+      if (Array.isArray(editForm.sections)) {
+        for (const sec of editForm.sections) {
+          try {
+            if (sec.id) {
+              // update existing assignment
+              await api.put(`faculty-subjects/${sec.id}/`, { faculty_id: sec.faculty_id ? Number(sec.faculty_id) : null, section: sec.section || 'A', semester: Number(editForm.semester) || 1 })
+            } else {
+              // create new assignment
+              // only create if faculty or section present
+              await api.post('faculty-subjects/', { faculty_id: sec.faculty_id ? Number(sec.faculty_id) : null, subject_id: editingId, semester: Number(editForm.semester) || 1, section: sec.section || 'A' })
+            }
+          } catch (e) {
+            console.error('sync assignment failed', e)
+          }
         }
       }
       setEditingId(null)
@@ -125,6 +135,27 @@ export default function HodCourses() {
     } catch (err) {
       console.error(err)
       notify({ type: 'error', message: err?.response?.data?.error || 'Delete failed' })
+    }
+  }
+
+  function addSectionRow() {
+    setEditForm({ ...editForm, sections: [ ...(editForm.sections || []), { id: null, section: 'A', faculty_id: '' } ] })
+  }
+
+  async function removeSectionRow(index) {
+    const sec = (editForm.sections || [])[index]
+    if (!sec) return
+    // optimistically remove
+    setEditForm({ ...editForm, sections: editForm.sections.filter((_, i) => i !== index) })
+    if (sec.id) {
+      try {
+        await api.delete(`faculty-subjects/${sec.id}/`)
+        notify({ type: 'success', message: 'Section removed' })
+      } catch (e) {
+        console.error('delete assignment failed', e)
+        notify({ type: 'error', message: 'Failed to remove section' })
+        fetchSubjects()
+      }
     }
   }
 
@@ -176,16 +207,28 @@ export default function HodCourses() {
                     {[1,2,3,4,5,6,7,8].map(n => <option key={n} value={n}>{`Sem ${n}`}</option>)}
                   </select>
                 </td>
-                <td style={{ padding: 8 }}>
-                  <select value={editForm.section} onChange={e => setEditForm({ ...editForm, section: e.target.value })} style={{ width: 80 }}>
-                    {['A','B','C','D','E','F','G'].map(sx => <option key={sx} value={sx}>{sx}</option>)}
-                  </select>
+                <td style={{ padding: 8, verticalAlign: 'top' }}>
+                  {(editForm.sections && editForm.sections.length) ? editForm.sections.map((sec, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                      <select value={sec.section} onChange={e => setEditForm({ ...editForm, sections: editForm.sections.map((s,i) => i === idx ? { ...s, section: e.target.value } : s) })} style={{ width: 80 }}>
+                        {['A','B','C','D','E','F','G'].map(sx => <option key={sx} value={sx}>{sx}</option>)}
+                      </select>
+                      <button className="btn-icon btn-danger" onClick={() => removeSectionRow(idx)} style={{ padding: '4px 8px' }}>Delete</button>
+                    </div>
+                  )) : <div style={{ color: '#666' }}>No sections</div>}
+                  <div>
+                    <button className="btn-icon btn-success" onClick={addSectionRow} style={{ marginTop: 6 }}>Add section</button>
+                  </div>
                 </td>
-                <td style={{ padding: 8 }}>
-                  <select value={editForm.faculty_id} onChange={e => setEditForm({ ...editForm, faculty_id: e.target.value })} style={{ minWidth: 160 }}>
-                    <option value="">(none)</option>
-                    {faculty.map(f => <option key={f.id} value={f.id}>{f.first_name || f.user?.first_name} {f.last_name || f.user?.last_name} ({f.user?.username || f.username})</option>)}
-                  </select>
+                <td style={{ padding: 8, verticalAlign: 'top' }}>
+                  {(editForm.sections && editForm.sections.length) ? editForm.sections.map((sec, idx) => (
+                    <div key={idx} style={{ marginBottom: 6 }}>
+                      <select value={sec.faculty_id} onChange={e => setEditForm({ ...editForm, sections: editForm.sections.map((s,i) => i === idx ? { ...s, faculty_id: e.target.value } : s) })} style={{ minWidth: 200 }}>
+                        <option value="">(none)</option>
+                        {faculty.map(f => <option key={f.id} value={f.id}>{f.first_name || f.user?.first_name} {f.last_name || f.user?.last_name} ({f.user?.username || f.username})</option>)}
+                      </select>
+                    </div>
+                  )) : <div style={{ color: '#666' }}>(no faculty)</div>}
                 </td>
                 <td style={{ padding: 8 }}>
                   <button className="btn-icon" onClick={saveEdit} style={{ marginRight: 8 }}>Save</button>

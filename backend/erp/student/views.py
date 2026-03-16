@@ -167,7 +167,7 @@ def token_refresh(request):
 
 # Students
 @csrf_exempt
-@require_auth(allowed=['ADMIN','HOD'])
+@require_auth(allowed=['ADMIN','HOD','FACULTY'])
 def students_list_create(request):
     if request.method == 'GET':
         user = request.request_user
@@ -178,6 +178,11 @@ def students_list_create(request):
         if user.role == 'HOD':
             dept = Department.objects.filter(hod=user).first()
             qs = Student.objects.select_related('user','department').filter(department=dept)
+        elif user.role == 'FACULTY':
+            fac = Faculty.objects.filter(user=user).first()
+            if not fac:
+                return _json({'error': 'faculty profile not found'}, status=404)
+            qs = Student.objects.select_related('user','department').filter(department=fac.department)
         else:
             qs = Student.objects.select_related('user','department').all()
         if search:
@@ -208,6 +213,9 @@ def students_list_create(request):
         return _json({'results': out, 'meta': meta})
 
     if request.method == 'POST':
+        # only ADMIN or HOD may create students
+        if request.request_user.role not in ['ADMIN','HOD']:
+            return _json({'error': 'forbidden'}, status=403)
         try:
             data = json.loads(request.body)
         except Exception:
@@ -846,7 +854,7 @@ def facultysubject_list_create(request):
             else:
                 qs = qs.none()
         # ADMIN sees all
-        out = [{'id': fs.id, 'faculty': fs.faculty.user.username, 'faculty_id': fs.faculty.id, 'subject': fs.subject.name, 'subject_id': fs.subject.id, 'semester': fs.semester, 'section': fs.section} for fs in qs]
+        out = [{'id': fs.id, 'faculty': fs.faculty.user.username, 'faculty_id': fs.faculty.id, 'subject': fs.subject.name, 'subject_id': fs.subject.id, 'semester': fs.semester, 'section': fs.section, 'department_code': fs.subject.department.code if fs.subject and fs.subject.department else None} for fs in qs]
         return _json(out)
 
     # POST: create assignment (only ADMIN/HOD allowed)
@@ -876,6 +884,76 @@ def facultysubject_list_create(request):
     return _json({'error': 'method not allowed'}, status=405)
 
 
+@csrf_exempt
+@require_auth(allowed=['ADMIN','HOD'])
+def facultysubject_detail(request, fs_id):
+    fs = get_object_or_404(FacultySubject, id=fs_id)
+    user = request.request_user
+    # HOD may only operate within their department
+    if user.role == 'HOD':
+        dept = Department.objects.filter(hod=user).first()
+        if not dept or fs.faculty.department != dept or fs.subject.department != dept:
+            return _json({'error': 'forbidden'}, status=403)
+
+    if request.method == 'GET':
+        return _json({'id': fs.id, 'faculty_id': fs.faculty.id, 'faculty': fs.faculty.user.username, 'subject_id': fs.subject.id, 'subject': fs.subject.name, 'semester': fs.semester, 'section': fs.section})
+
+    if request.method == 'PUT':
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            return _json({'error': 'invalid json'}, status=400)
+        faculty_id = data.get('faculty_id')
+        section = data.get('section')
+        semester = data.get('semester')
+        if faculty_id is not None:
+            try:
+                new_fac = Faculty.objects.get(id=int(faculty_id))
+            except Exception:
+                return _json({'error': 'invalid faculty_id'}, status=400)
+            # ensure same department
+            if new_fac.department != fs.subject.department:
+                return _json({'error': 'faculty and subject department mismatch'}, status=400)
+            fs.faculty = new_fac
+        if section is not None:
+            fs.section = section
+        if semester is not None:
+            try:
+                fs.semester = int(semester)
+            except Exception:
+                pass
+        fs.save()
+        return _json({'status': 'updated'})
+
+    if request.method == 'DELETE':
+        fs.delete()
+        return _json({'status': 'deleted'})
+
+    return _json({'error': 'method not allowed'}, status=405)
+
+
+@csrf_exempt
+@require_auth(allowed=['FACULTY'])
+def faculty_dashboard_stats(request):
+    # Provide simple dashboard counts for faculty users
+    user = request.request_user
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    try:
+        faculty = Faculty.objects.get(user__id=user.id)
+    except Faculty.DoesNotExist:
+        return _json({'error': 'faculty profile not found'}, status=404)
+    from datetime import date as _date
+    today = _date.today()
+    # number of attendance sessions created today for this faculty
+    sessions_today = AttendanceSession.objects.filter(faculty=faculty, date=today).count()
+    # number of assignments for this faculty
+    assignments_count = FacultySubject.objects.filter(faculty=faculty).count()
+    # pending attendance: assignments without a session today (approximation)
+    pending = max(0, assignments_count - sessions_today)
+    return _json({'classes_today': sessions_today, 'pending_attendance': pending, 'assignments_count': assignments_count})
+
+
 # Marks
 @csrf_exempt
 @require_auth(allowed=['FACULTY'])
@@ -896,14 +974,32 @@ def upload_marks(request):
     assigned = FacultySubject.objects.filter(faculty=faculty, subject=subject, semester=student.semester, section=student.section).exists()
     if not assigned:
         return _json({'error': 'faculty not assigned to this subject/section'}, status=403)
-    m = Marks.objects.create(student=student, subject=subject, faculty=faculty, marks_obtained=marks_obtained, max_marks=max_marks)
-    return _json({'status': 'ok', 'id': m.id})
+    # upsert: if a mark for this student+subject exists, update it; otherwise create
+    existing = Marks.objects.filter(student=student, subject=subject).order_by('-created_at').first()
+    if existing:
+        existing.marks_obtained = marks_obtained
+        existing.max_marks = max_marks
+        existing.faculty = faculty
+        existing.save()
+        return _json({'status': 'ok', 'id': existing.id, 'updated': True})
+    else:
+        m = Marks.objects.create(student=student, subject=subject, faculty=faculty, marks_obtained=marks_obtained, max_marks=max_marks)
+        return _json({'status': 'ok', 'id': m.id, 'updated': False})
 
 
 def marks_student(request, student_id):
     student = get_object_or_404(Student, id=student_id)
-    qs = Marks.objects.filter(student=student).select_related('subject','faculty__user')
-    out = [{'subject': m.subject.name, 'faculty': m.faculty.user.username if m.faculty else None, 'marks': m.marks_obtained, 'max': m.max_marks, 'date': m.created_at.isoformat()} for m in qs]
+    # return latest mark per subject for this student
+    qs = Marks.objects.filter(student=student).select_related('subject','faculty__user').order_by('-created_at')
+    latest = {}
+    for m in qs:
+        sid = m.subject.id
+        if sid in latest:
+            continue
+        latest[sid] = m
+    out = []
+    for sid, m in latest.items():
+        out.append({'subject_id': m.subject.id, 'subject': m.subject.name, 'faculty': m.faculty.user.username if m.faculty else None, 'marks': m.marks_obtained, 'max': m.max_marks, 'date': m.created_at.isoformat()})
     return _json({'student': student.user.username, 'marks': out})
 
 

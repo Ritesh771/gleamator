@@ -15,6 +15,7 @@ urlpatterns = [
     path('faculty/', views.faculty_list_create, name='faculty-list-create'),
     path('faculty/<int:faculty_id>/', views.faculty_detail, name='faculty-detail'),
     path('hods/', views.hods_list_create, name='hods-list-create'),
+    path('faculty/dashboard/', views.faculty_dashboard_stats, name='faculty-dashboard-stats'),
 
     path('subjects/', views.subjects_list_create, name='subjects-list-create'),
     path('subjects/<int:subject_id>/', views.subjects_detail, name='subjects-detail'),
@@ -30,6 +31,7 @@ urlpatterns = [
 
     # Faculty-Subject assignments
     path('faculty-subjects/', views.facultysubject_list_create, name='facultysubject-list-create'),
+    path('faculty-subjects/<int:fs_id>/', views.facultysubject_detail, name='facultysubject-detail'),
 
     # Marks
     path('marks/upload/', views.upload_marks, name='marks-upload'),

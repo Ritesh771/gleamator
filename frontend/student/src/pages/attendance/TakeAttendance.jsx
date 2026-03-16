@@ -2,22 +2,31 @@ import React, { useEffect, useState } from 'react'
 import api from '../../lib/api'
 
 export default function TakeAttendance() {
-  const [subjects, setSubjects] = useState([])
-  const [selected, setSelected] = useState(null)
+  const [assignments, setAssignments] = useState([]) // faculty-subject assignments
+  const [subjectsMap, setSubjectsMap] = useState({}) // subject_id -> { name, semester, department_code, sections: [] }
+  const [selectedSubjectId, setSelectedSubjectId] = useState(null)
+  const [selectedSection, setSelectedSection] = useState(null)
   const [students, setStudents] = useState([])
   const [records, setRecords] = useState({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    fetchSubjects()
-  }, [])
+  useEffect(() => { fetchAssignments() }, [])
 
-  async function fetchSubjects() {
+  async function fetchAssignments() {
     setLoading(true)
     try {
       const res = await api.get('faculty-subjects/')
-      setSubjects(res.data.results || res.data)
+      const list = res.data.results || res.data || []
+      setAssignments(list)
+      // build subject map
+      const map = {}
+      list.forEach(a => {
+        const sid = a.subject_id
+        if (!map[sid]) map[sid] = { id: sid, name: a.subject, semester: a.semester, department_code: a.department_code, sections: [] }
+        if (!map[sid].sections.includes(a.section)) map[sid].sections.push(a.section)
+      })
+      setSubjectsMap(map)
     } catch (e) {
       console.error(e)
     } finally {
@@ -25,40 +34,55 @@ export default function TakeAttendance() {
     }
   }
 
-  async function selectSubject(s) {
-    setSelected(s)
-    setStudents([])
-    setRecords({})
+  async function onSelectSubject(subjectId) {
+    setSelectedSubjectId(subjectId)
+    const subj = subjectsMap[subjectId]
+    const section = (subj && subj.sections && subj.sections[0]) || null
+    setSelectedSection(section)
+    if (section) await fetchStudentsFor(subj.department_code, subj.semester, section)
+    else setStudents([])
+  }
+
+  async function onSelectSection(section) {
+    setSelectedSection(section)
+    const subj = subjectsMap[selectedSubjectId]
+    if (subj) await fetchStudentsFor(subj.department_code, subj.semester, section)
+  }
+
+  async function fetchStudentsFor(departmentCode, semester, section) {
     setLoading(true)
     try {
-      // try to fetch by department if available
-      const params = {}
-      if (s.department && s.department.code) params.department = s.department.code
+      const params = { semester }
+      if (section) params.section = section
+      if (departmentCode) params.department = departmentCode
       const res = await api.get('students/', { params })
-      const list = res.data.results || res.data
+      const list = res.data.results || res.data || []
       setStudents(list)
       const init = {}
       list.forEach((st) => { init[st.id] = true })
       setRecords(init)
     } catch (e) {
       console.error(e)
+      setStudents([])
+      setRecords({})
     } finally {
       setLoading(false)
     }
   }
 
-  function toggle(id) {
-    setRecords((r) => ({ ...r, [id]: !r[id] }))
-  }
+  function toggle(id) { setRecords((r) => ({ ...r, [id]: !r[id] })) }
 
   async function submit(e) {
     e.preventDefault()
-    if (!selected) return
+    if (!selectedSubjectId || !selectedSection) return
     setSaving(true)
     try {
+      const subj = subjectsMap[selectedSubjectId]
       const payload = {
-        subject_id: selected.subject.id || selected.subject_id || selected.id,
-        records: students.map((s) => ({ student_id: s.id, present: !!records[s.id] })),
+        subject_id: Number(selectedSubjectId),
+        semester: Number(subj.semester || 0),
+        section: selectedSection,
+        records: students.map((s) => ({ student_id: s.id, status: records[s.id] ? 'P' : 'A' }))
       }
       await api.post('attendance/take/', payload)
       alert('Attendance saved')
@@ -74,16 +98,26 @@ export default function TakeAttendance() {
     <div style={{ padding: 24 }}>
       <h2>Take Attendance</h2>
       {loading && <div>Loading...</div>}
-      <div>
+
+      <div style={{ marginBottom: 12 }}>
         <label>Subject</label>
-        <select onChange={(e) => selectSubject(JSON.parse(e.target.value))}>
+        <select value={selectedSubjectId || ''} onChange={(e) => onSelectSubject(e.target.value)}>
           <option value="">-- select --</option>
-          {subjects.map((fs) => (
-            <option key={fs.id} value={JSON.stringify(fs)}>{fs.subject?.name || fs.subject_name || fs.id}</option>
-          ))}
+          {Object.values(subjectsMap).map(s => <option key={s.id} value={s.id}>{s.name} (Sem {s.semester})</option>)}
         </select>
       </div>
-      {selected && (
+
+      {selectedSubjectId && (
+        <div style={{ marginBottom: 12 }}>
+          <label>Section</label>
+          <select value={selectedSection || ''} onChange={(e) => onSelectSection(e.target.value)}>
+            <option value="">-- select --</option>
+            {(subjectsMap[selectedSubjectId]?.sections || []).map(sec => <option key={sec} value={sec}>{sec}</option>)}
+          </select>
+        </div>
+      )}
+
+      {selectedSubjectId && selectedSection && (
         <form onSubmit={submit}>
           <h3>Students ({students.length})</h3>
           <table>

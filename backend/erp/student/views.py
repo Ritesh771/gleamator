@@ -954,6 +954,96 @@ def faculty_dashboard_stats(request):
     return _json({'classes_today': sessions_today, 'pending_attendance': pending, 'assignments_count': assignments_count})
 
 
+@csrf_exempt
+@require_auth(allowed=['FACULTY'])
+def faculty_attendance_trends(request):
+    """Return simple attendance percentage trends for the last 7 days for the logged-in faculty."""
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    try:
+        faculty = Faculty.objects.get(user__id=request.request_user.id)
+    except Faculty.DoesNotExist:
+        return _json({'error': 'faculty profile not found'}, status=404)
+    from datetime import date, timedelta
+    today = date.today()
+    trends = []
+    # last 7 days (including today)
+    for i in range(6, -1, -1):
+        d = today - timedelta(days=i)
+        sessions = AttendanceSession.objects.filter(faculty=faculty, date=d)
+        session_ids = [s.id for s in sessions]
+        if not session_ids:
+            trends.append({'label': d.isoformat(), 'value': 0})
+            continue
+        total = AttendanceRecord.objects.filter(session__in=session_ids).count()
+        present = AttendanceRecord.objects.filter(session__in=session_ids, status='P').count()
+        perc = int((present / (total or 1)) * 100) if total else 0
+        trends.append({'label': d.isoformat(), 'value': perc})
+    return _json({'trends': trends})
+
+
+@csrf_exempt
+@require_auth(allowed=['FACULTY'])
+def attendance_records_list(request):
+    """Return attendance sessions for the faculty with present/total counts. Optional filter: subject_id."""
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    try:
+        faculty = Faculty.objects.get(user__id=request.request_user.id)
+    except Faculty.DoesNotExist:
+        return _json({'error': 'faculty profile not found'}, status=404)
+    subject_id = request.GET.get('subject_id')
+    qs = AttendanceSession.objects.filter(faculty=faculty).select_related('subject').order_by('-date')
+    if subject_id:
+        try:
+            sid = int(subject_id)
+            qs = qs.filter(subject__id=sid)
+        except Exception:
+            pass
+    out = []
+    for s in qs:
+        total = AttendanceRecord.objects.filter(session=s).count()
+        present = AttendanceRecord.objects.filter(session=s, status='P').count()
+        out.append({'session_id': s.id, 'date': s.date.isoformat(), 'subject_id': s.subject.id if s.subject else None, 'subject': s.subject.name if s.subject else None, 'present': present, 'total': total})
+    return _json({'results': out})
+
+
+@csrf_exempt
+@require_auth(allowed=['FACULTY','HOD','ADMIN'])
+def attendance_session_students(request, session_id):
+    """Return lists of present and absent students for a given attendance session."""
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    session = get_object_or_404(AttendanceSession, id=session_id)
+    user = request.request_user
+    # permission checks
+    if user.role == 'FACULTY':
+        if session.faculty.user.id != user.id:
+            return _json({'error': 'forbidden'}, status=403)
+    if user.role == 'HOD':
+        # HOD may only view sessions for their department
+        if not session.subject or session.subject.department.hod_id != user.id:
+            return _json({'error': 'forbidden'}, status=403)
+
+    qs = AttendanceRecord.objects.filter(session=session).select_related('student__user')
+    present = []
+    absent = []
+    for r in qs:
+        item = {
+            'student_id': r.student.id,
+            'usn': getattr(r.student, 'usn', None),
+            'name': r.student.user.username if r.student and r.student.user else None,
+            'section': getattr(r.student, 'section', None),
+            'semester': getattr(r.student, 'semester', None),
+        }
+        if r.status == 'P':
+            present.append(item)
+        else:
+            absent.append(item)
+
+    return _json({'session_id': session_id, 'present': present, 'absent': absent})
+
+
 # Marks
 @csrf_exempt
 @require_auth(allowed=['FACULTY'])

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Layout from '../../components/Layout'
 import StatsCard from '../../components/StatsCard'
+import BarChart from '../../components/BarChart'
 import api from '../../lib/api'
 
 function AnimatedNumber({ value, duration = 800, format = v => v }) {
@@ -64,6 +65,10 @@ export default function AdminDashboard() {
     { title: 'Students', value: adminStats.students, meta: 'Total students', variant: 'orange', spark: [8,9,11,10,14,13,15] },
   ] : []
 
+  const studentData = deptStats.map(d => ({ label: d.code, value: d.students || 0, color: '#f59e0b' }))
+  const facultyData = deptStats.map(d => ({ label: d.code, value: d.faculty || 0, color: '#06b6d4' }))
+  const attendanceData = deptStats.map(d => ({ label: d.code, value: d.average_attendance || 0, color: '#10b981' }))
+
   return (
     <Layout>
       <div style={{ padding: 24 }}>
@@ -114,34 +119,23 @@ export default function AdminDashboard() {
 
         <div style={{ marginTop: 22 }}>
           <h3>Departments</h3>
-          <div className="dept-grid">
-            {deptStats.length === 0 && <div className="card">Loading departments…</div>}
-            {deptStats.map(d => (
-              <div key={d.code} className="card dept-card">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div className="dept-avatar">{(d.name || '').slice(0,2).toUpperCase()}</div>
-                  <div>
-                    <div style={{ fontWeight: 800 }}>{d.name}</div>
-                    <div style={{ color: 'var(--muted)', fontSize: 13 }}>{d.code}</div>
-                  </div>
-                </div>
-                <div className="dept-card-body">
-                  <div className="dept-stat">
-                    <div style={{ fontWeight:700 }}><AnimatedNumber value={d.students || 0} format={v => v.toLocaleString()} /></div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>Students</div>
-                  </div>
-                  <div className="dept-stat">
-                    <div style={{ fontWeight:700 }}><AnimatedNumber value={d.faculty || 0} /></div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>Faculty</div>
-                  </div>
-                  <div className="dept-attendance">
-                    <div style={{ fontWeight:700 }}>{d.average_attendance != null ? `${d.average_attendance}%` : '—'}</div>
-                    <div style={{ color: 'var(--muted)', fontSize: 12 }}>Avg Attendance</div>
-                  </div>
-                </div>
+          {deptStats.length === 0 && <div className="card">Loading departments…</div>}
+          {deptStats.length > 0 &&
+            <div className="dept-grid">
+              <div className="card">
+                <h4 style={{ margin: '4px 0 12px 12px' }}>Students per Department</h4>
+                <BarChart data={studentData} width={320} height={200} />
               </div>
-            ))}
-          </div>
+              <div className="card">
+                <h4 style={{ margin: '4px 0 12px 12px' }}>Faculty per Department</h4>
+                <BarChart data={facultyData} width={320} height={200} />
+              </div>
+              <div className="card">
+                <h4 style={{ margin: '4px 0 12px 12px' }}>Avg. Attendance (%)</h4>
+                <BarChart data={attendanceData} width={320} height={200} format={v => `${v}%`} />
+              </div>
+            </div>
+          }
         </div>
       </div>
     </Layout>

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import * as XLSX from 'xlsx'
 import api from '../../lib/api'
 import { notify } from '../../lib/toastService'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -136,6 +137,13 @@ export default function AdminUsers() {
     }
   }
 
+  const handleExport = () => {
+    const worksheet = XLSX.utils.json_to_sheet(users);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Users");
+    XLSX.writeFile(workbook, "users.xlsx");
+  };
+
   return (
     <div style={{ padding: 24 }}>
       <ConfirmModal open={confirmOpen} title="Delete user" message="Are you sure you want to delete this user?" onConfirm={handleConfirmDelete} onCancel={() => setConfirmOpen(false)} />
@@ -183,6 +191,7 @@ export default function AdminUsers() {
           <option value="FACULTY">FACULTY</option>
           <option value="STUDENT">STUDENT</option>
         </select>
+        <button onClick={handleExport} className="btn-icon">Export to Excel</button>
         {/* role filter auto-applies; no Filter button needed */}
       </div>
 

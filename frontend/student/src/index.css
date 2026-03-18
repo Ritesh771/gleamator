@@ -32,10 +32,21 @@ body {
 .app-main { flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
 .app-content { padding: 20px; flex: 1; overflow: auto; }
 
+/* Ensure the fixed sidebar leaves space for main content — enforce margin-left */
+/* removed early sidebar z-index duplicate to avoid conflicting declarations */
+
+/* keep header above sidebar */
+/* header stacking handled below; removed duplicate */
+
+/* make tables responsive inside content to avoid overlap with fixed sidebar/header */
+.app-content .table-wrap { overflow-x: auto; }
+.app-content table { width: 100%; border-collapse: collapse; }
+.app-content table th, .app-content table td { white-space: nowrap }
+
 /* Fixed header and sidebar */
-.app-header { height: 60px; position: fixed; top: 0; left: 0; right: 0; z-index: 40 }
-.app-sidebar { width: var(--sidebar-width); position: fixed; top: 60px; left: 0; bottom: 0; overflow: auto; padding: 18px; color: var(--text); background: var(--card); border-right: 1px solid var(--border); box-shadow: 0 6px 18px rgba(16,24,40,0.04); border-radius: 0; transition: width 160ms ease }
-.app-main { margin-left: var(--sidebar-width); padding-top: 60px; transition: margin-left 180ms ease }
+.app-header { height: 60px; position: fixed; top: 0; left: 0; right: 0; z-index: 100 }
+.app-sidebar { width: var(--sidebar-width); position: fixed; top: 60px; left: 0; bottom: 0; overflow: auto; padding: 18px; color: var(--text); background: var(--card); border-right: 1px solid var(--border); box-shadow: 0 6px 18px rgba(16,24,40,0.04); border-radius: 0; transition: width 160ms ease; z-index: 80 }
+.app-main { margin-left: var(--sidebar-width) !important; padding-top: 60px !important; transition: margin-left 180ms ease }
 
 .sidebar-inner { max-width: 220px }
 .sidebar-top { display:flex; align-items:center; gap:12px }

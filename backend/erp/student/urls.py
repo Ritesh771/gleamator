@@ -16,11 +16,14 @@ urlpatterns = [
     path('faculty/<int:faculty_id>/', views.faculty_detail, name='faculty-detail'),
     path('hods/', views.hods_list_create, name='hods-list-create'),
     path('faculty/dashboard/', views.faculty_dashboard_stats, name='faculty-dashboard-stats'),
+    path('faculty/attendance/trends/', views.faculty_attendance_trends, name='faculty-attendance-trends'),
 
     path('subjects/', views.subjects_list_create, name='subjects-list-create'),
     path('subjects/<int:subject_id>/', views.subjects_detail, name='subjects-detail'),
 
     path('attendance/take/', views.attendance_take, name='attendance-take'),
+    path('attendance/records/', views.attendance_records_list, name='attendance-records-list'),
+    path('attendance/session/<int:session_id>/students/', views.attendance_session_students, name='attendance-session-students'),
     path('attendance/export/', views.attendance_export, name='attendance-export'),
     path('attendance/student/<int:student_id>/', views.attendance_student, name='attendance-student'),
     path('attendance/report/', views.attendance_report, name='attendance-report'),

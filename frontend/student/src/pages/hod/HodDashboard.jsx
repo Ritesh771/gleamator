@@ -4,6 +4,7 @@ import Layout from '../../components/Layout'
 import StatsCard from '../../components/StatsCard'
 import api from '../../lib/api'
 import { useAuth } from '../../lib/auth'
+import BarChart from '../../components/BarChart'
 
 function AnimatedNumber({ value, duration = 800, format = v => v }) {
   const [display, setDisplay] = useState(0)
@@ -28,6 +29,8 @@ export default function HodDashboard() {
   const [dept, setDept] = useState(null)
   const [stats, setStats] = useState([])
   const [deptStats, setDeptStats] = useState(null)
+  const [semStats, setSemStats] = useState([])
+  const [loadingSemStats, setLoadingSemStats] = useState(false)
 
   useEffect(() => { if (user) loadDept() }, [user])
 
@@ -62,6 +65,8 @@ export default function HodDashboard() {
         { title: 'Dept Faculty', value: d.faculty != null ? d.faculty : '—', meta: 'Faculty count', variant: 'blue', spark: [2,3,3,4,5,4,6] },
         { title: 'Avg Attendance', value: d.average_attendance != null ? `${d.average_attendance}%` : '—', meta: 'Department average', variant: 'green', spark: [1,2,1,3,2,2,1] }
       ])
+      // load semester-wise stats (aggregate student attendance by semester)
+      loadSemesterStats(deptObj)
     } catch (e) {
       console.error('failed to load stats for dept', e)
       // fallback: count via students/faculty endpoints
@@ -77,6 +82,44 @@ export default function HodDashboard() {
       } catch (e2) {
         console.error('fallback stats failed', e2)
       }
+    }
+  }
+
+  async function loadSemesterStats(deptObj) {
+    setLoadingSemStats(true)
+    try {
+      // fetch all students in department (reasonable for department sizes)
+      const res = await api.get('students/', { params: { department: deptObj.code, page: 1, page_size: 1000 } })
+      const list = (res.data && (res.data.results || res.data)) || []
+      // fetch attendance per student in parallel (attendance/student/<id>/)
+      const perStudent = await Promise.all(list.map(async (s) => {
+        try {
+          const r = await api.get(`attendance/student/${s.id}/`)
+          const att = r.data && r.data.attendance ? r.data.attendance : []
+          const vals = att.map(a => a.attendance_percent).filter(v => v != null)
+          const avg = vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null
+          return { id: s.id, semester: s.semester, attendance_percent: avg }
+        } catch (e) {
+          return { id: s.id, semester: s.semester, attendance_percent: null }
+        }
+      }))
+
+      // aggregate by semester
+      const map = {}
+      perStudent.forEach(p => {
+        const sem = p.semester || 0
+        if (!map[sem]) map[sem] = { total: 0, count: 0 }
+        if (p.attendance_percent != null) {
+          map[sem].total += p.attendance_percent
+          map[sem].count += 1
+        }
+      })
+      const sems = Object.keys(map).sort((a,b)=>Number(a)-Number(b)).map(sem => ({ label: `Sem ${sem}`, value: map[sem].count ? Math.round(map[sem].total / map[sem].count) : 0 }))
+      setSemStats(sems)
+    } catch (e) {
+      console.error('failed to load semester stats', e)
+    } finally {
+      setLoadingSemStats(false)
     }
   }
 
@@ -156,6 +199,28 @@ export default function HodDashboard() {
             </div>
           ) : (
             <div>No department assigned to your HOD account. Contact admin.</div>
+          )}
+          {dept && (
+            <div style={{ marginTop: 18 }}>
+              <h4>Semester-wise Attendance</h4>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 320, background: '#fff', border: '1px solid #e6e6e6', padding: 12, borderRadius: 8 }}>
+                  {loadingSemStats ? <div>Loading semester stats…</div> : (
+                    semStats.length > 0 ? <BarChart data={semStats.map(s => ({ label: s.label, value: s.value }))} width={480} height={160} /> : <div style={{ color: '#6b7280' }}>No semester data available</div>
+                  )}
+                </div>
+                <div style={{ width: 220 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 8 }}>Semester Summary</div>
+                  {semStats.length === 0 && <div style={{ color: '#6b7280' }}>No data</div>}
+                  {semStats.map(s => (
+                    <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0' }}>
+                      <div style={{ color: '#374151' }}>{s.label}</div>
+                      <div style={{ fontWeight: 700 }}>{s.value}%</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

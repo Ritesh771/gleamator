@@ -12,6 +12,7 @@ import FacultyDashboard from './pages/faculty/FacultyDashboard'
 import StudentDashboard from './pages/student/StudentDashboard'
 import Layout from './components/Layout'
 import TakeAttendance from './pages/attendance/TakeAttendance'
+import AttendanceRecords from './pages/attendance/AttendanceRecords'
 import UploadMarks from './pages/marks/UploadMarks'
 import HodDepartments from './pages/hod/HodDepartments'
 import HodFaculty from './pages/hod/HodFaculty'
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/students" element={<Layout><ProtectedRoute allowedRoles={["ADMIN","HOD","FACULTY"]}><Students /></ProtectedRoute></Layout>} />
           <Route path="/attendance/take" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><TakeAttendance /></ProtectedRoute></Layout>} />
+          <Route path="/attendance/records" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><AttendanceRecords /></ProtectedRoute></Layout>} />
           <Route path="/marks/upload" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><UploadMarks /></ProtectedRoute></Layout>} />
           <Route path="/hod/departments" element={<Layout><ProtectedRoute allowedRoles={["HOD"]}><HodDepartments /></ProtectedRoute></Layout>} />
           <Route path="/hod/faculty" element={<Layout><ProtectedRoute allowedRoles={["HOD"]}><HodFaculty /></ProtectedRoute></Layout>} />

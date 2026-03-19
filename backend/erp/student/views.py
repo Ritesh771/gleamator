@@ -244,13 +244,12 @@ def students_list_create(request):
 
 @csrf_exempt
 def students_detail(request, student_id):
-    # student_id in URL is expected to be Student.id, but some frontends
-    # pass the authenticated User.id. Try to resolve both safely:
+    # Prefer resolving student by User.id first (frontend commonly sends user.id).
+    # Fallback to Student.id if no match found for user__id.
     try:
-        student = Student.objects.filter(id=student_id).first()
+        student = Student.objects.filter(user__id=student_id).first()
         if not student:
-            # fallback: treat student_id as a User.id and lookup the Student
-            student = Student.objects.filter(user__id=student_id).first()
+            student = Student.objects.filter(id=student_id).first()
         if not student:
             return _json({'error': 'student not found'}, status=404)
     except Exception:
@@ -670,9 +669,31 @@ def attendance_take(request):
 
 
 def attendance_student(request, student_id):
-    student = get_object_or_404(Student, id=student_id)
+    # Prefer resolving student by User.id first to avoid accidental id collisions.
+    student = Student.objects.filter(user__id=student_id).first()
+    if not student:
+        student = Student.objects.filter(id=student_id).first()
+    if not student:
+        return _json({'error': 'student not found'}, status=404)
+
+    # Recent attendance records (detailed)
+    recs_qs = AttendanceRecord.objects.select_related('session__subject', 'session__faculty').filter(student=student).order_by('-session__date')
+    records = []
+    for r in recs_qs:
+        records.append({
+            'id': r.id,
+            'session_date': r.session.date.isoformat() if getattr(r.session, 'date', None) else None,
+            'subject_name': r.session.subject.name if r.session and r.session.subject else None,
+            'subject_id': r.session.subject.id if r.session and r.session.subject else None,
+            'present': True if r.status == 'P' else False,
+            'status': r.status,
+            'faculty': r.session.faculty.user.username if r.session and r.session.faculty and r.session.faculty.user else None,
+            'created_at': getattr(r, 'id', None)
+        })
+
+    # Per-subject summary (percentage)
     subjects = Subject.objects.filter(department=student.department, semester=student.semester)
-    out = []
+    summary = []
     for s in subjects:
         sessions = AttendanceSession.objects.filter(subject=s)
         total = sessions.count()
@@ -681,8 +702,9 @@ def attendance_student(request, student_id):
         else:
             attended = AttendanceRecord.objects.filter(student=student, session__subject=s, status='P').count()
             perc = int((attended / (total or 1)) * 100)
-        out.append({'subject': s.name, 'subject_id': s.id, 'attendance_percent': perc})
-    return _json({'student': student.user.username, 'attendance': out})
+        summary.append({'subject': s.name, 'subject_id': s.id, 'attendance_percent': perc})
+
+    return _json({'student': student.user.username, 'attendance': records, 'summary': summary})
 
 
 def attendance_report(request):
@@ -1091,7 +1113,12 @@ def upload_marks(request):
 
 
 def marks_student(request, student_id):
-    student = get_object_or_404(Student, id=student_id)
+    # prefer lookup by user id first
+    student = Student.objects.filter(user__id=student_id).first()
+    if not student:
+        student = Student.objects.filter(id=student_id).first()
+    if not student:
+        return _json({'error': 'student not found'}, status=404)
     # return latest mark per subject for this student
     qs = Marks.objects.filter(student=student).select_related('subject','faculty__user').order_by('-created_at')
     latest = {}
@@ -1102,7 +1129,18 @@ def marks_student(request, student_id):
         latest[sid] = m
     out = []
     for sid, m in latest.items():
-        out.append({'subject_id': m.subject.id, 'subject': m.subject.name, 'faculty': m.faculty.user.username if m.faculty else None, 'marks': m.marks_obtained, 'max': m.max_marks, 'date': m.created_at.isoformat()})
+        out.append({
+            'id': m.id,
+            'subject_id': m.subject.id,
+            'subject': m.subject.name,
+            'subject_name': m.subject.name,
+            'faculty': m.faculty.user.username if m.faculty else None,
+            'marks_obtained': m.marks_obtained,
+            'max_marks': m.max_marks,
+            'marks': m.marks_obtained,
+            'max': m.max_marks,
+            'date': m.created_at.isoformat()
+        })
     return _json({'student': student.user.username, 'marks': out})
 
 

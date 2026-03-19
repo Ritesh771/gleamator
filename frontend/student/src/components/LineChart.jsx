@@ -29,21 +29,21 @@ export default function LineChart({ data = [], width = 420, height = 160, paddin
       })}
 
       {/* path */}
-      <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+      <path d={pathD} fill="none" stroke="var(--accent)" strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
 
       {/* area fill */}
-      <path d={`${pathD} L ${padding + innerW} ${padding + innerH} L ${padding} ${padding + innerH} Z`} fill="rgba(59,130,246,0.08)" />
+      <path d={`${pathD} L ${padding + innerW} ${padding + innerH} L ${padding} ${padding + innerH} Z`} fill="rgba(14,165,164,0.08)" />
 
       {/* points */}
       {points.map(p => (
         <g key={p.x}>
-          <circle cx={p.x} cy={p.y} r={3.5} fill="#fff" stroke="#3b82f6" strokeWidth={2} />
+          <circle cx={p.x} cy={p.y} r={3.5} fill="#fff" stroke="var(--accent)" strokeWidth={2} />
         </g>
       ))}
 
       {/* x labels */}
       {points.map((p, i) => (
-        <text key={i} x={p.x} y={padding + innerH + 18} fontSize="10" textAnchor="middle" fill="#6b7280">{p.label.slice(5)}</text>
+        <text key={i} x={p.x} y={padding + innerH + 18} fontSize="10" textAnchor="middle" fill="var(--muted)">{p.label.slice(5)}</text>
       ))}
 
       {/* y labels */}

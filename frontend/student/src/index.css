@@ -1,13 +1,14 @@
 :root {
-  --bg: #ffffff;
+  /* New Rakshitha theme (teal / coral) */
+  --bg: linear-gradient(180deg,#f7fbfb,#f3f7f7);
   --sidebar-width: 240px;
-  --muted: #6b7280;
-  --text: #0f172a;
+  --muted: #64748b; /* slate-ish */
+  --text: #0b1220;
   --card: #ffffff;
-  --panel: #f8fafc;
-  --accent: #7c3aed; /* purple */
-  --accent-2: #a78bfa;
-  --border: #e6e9ef;
+  --panel: #f6fbfb;
+  --accent: #0ea5a4; /* teal */
+  --accent-2: #fb6f4f; /* coral */
+  --border: #e6eef0;
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;

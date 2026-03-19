@@ -33,17 +33,17 @@ export default function UploadMarks() {
     const subj = subjectsMap[subjectId]
     const section = (subj && subj.sections && subj.sections[0]) || null
     setSelectedSection(section)
-    if (section) await fetchStudentsFor(subj.department_code, subj.semester, section)
+    if (section) await fetchStudentsFor(subj.department_code, subj.semester, section, Number(subjectId))
     else setStudents([])
   }
 
   async function onSelectSection(section) {
     setSelectedSection(section)
     const subj = subjectsMap[selectedSubjectId]
-    if (subj) await fetchStudentsFor(subj.department_code, subj.semester, section)
+    if (subj) await fetchStudentsFor(subj.department_code, subj.semester, section, Number(selectedSubjectId))
   }
 
-  async function fetchStudentsFor(departmentCode, semester, section) {
+  async function fetchStudentsFor(departmentCode, semester, section, subjectIdParam) {
     try {
       const params = { semester }
       if (section) params.section = section
@@ -56,7 +56,7 @@ export default function UploadMarks() {
       setMarks(init)
       // fetch existing marks for this subject for each student
       try {
-        const subjectId = Number(selectedSubjectId)
+        const subjectId = Number(subjectIdParam || selectedSubjectId)
         if (subjectId) {
           const markPromises = list.map(st => api.get(`marks/student/${st.id}/`).then(r => ({ id: st.id, marks: r.data.marks || [] })).catch(() => ({ id: st.id, marks: [] })))
           const results = await Promise.all(markPromises)

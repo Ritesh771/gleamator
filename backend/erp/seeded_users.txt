@@ -1,0 +1,63 @@
+# Seeded users (created by manage.py seed_data)
+# Default password for all users: 12345
+
+# Principal (admin)
+principal	ADMIN	12345
+
+# Departments and HODs
+cse_hod	HOD	12345
+ec_hod	HOD	12345
+ai_hod	HOD	12345
+
+# CSE faculty (5)
+cse_fac1	FACULTY	12345
+cse_fac2	FACULTY	12345
+cse_fac3	FACULTY	12345
+cse_fac4	FACULTY	12345
+cse_fac5	FACULTY	12345
+
+# EC faculty (3)
+ec_fac1	FACULTY	12345
+ec_fac2	FACULTY	12345
+ec_fac3	FACULTY	12345
+
+# AI faculty (9)
+ai_fac1	FACULTY	12345
+ai_fac2	FACULTY	12345
+ai_fac3	FACULTY	12345
+ai_fac4	FACULTY	12345
+ai_fac5	FACULTY	12345
+ai_fac6	FACULTY	12345
+ai_fac7	FACULTY	12345
+ai_fac8	FACULTY	12345
+ai_fac9	FACULTY	12345
+
+# CSE students (5)
+cse_stu1	STUDENT	12345
+cse_stu2	STUDENT	12345
+cse_stu3	STUDENT	12345
+cse_stu4	STUDENT	12345
+cse_stu5	STUDENT	12345
+
+# EC students (3)
+ec_stu1	STUDENT	12345
+ec_stu2	STUDENT	12345
+ec_stu3	STUDENT	12345
+
+# AI students (9)
+ai_stu1	STUDENT	12345
+ai_stu2	STUDENT	12345
+ai_stu3	STUDENT	12345
+ai_stu4	STUDENT	12345
+ai_stu5	STUDENT	12345
+ai_stu6	STUDENT	12345
+ai_stu7	STUDENT	12345
+ai_stu8	STUDENT	12345
+ai_stu9	STUDENT	12345
+
+
+
+
+
+cd backend/erp
+python manage.py seed_data

@@ -244,15 +244,28 @@ def students_list_create(request):
 
 @csrf_exempt
 def students_detail(request, student_id):
-    student = get_object_or_404(Student, id=student_id)
+    # student_id in URL is expected to be Student.id, but some frontends
+    # pass the authenticated User.id. Try to resolve both safely:
+    try:
+        student = Student.objects.filter(id=student_id).first()
+        if not student:
+            # fallback: treat student_id as a User.id and lookup the Student
+            student = Student.objects.filter(user__id=student_id).first()
+        if not student:
+            return _json({'error': 'student not found'}, status=404)
+    except Exception:
+        return _json({'error': 'student not found'}, status=404)
     if request.method == 'GET':
         auth_header = request.META.get('HTTP_AUTHORIZATION','')
         if auth_header.startswith('Bearer '):
             payload = decode_jwt(auth_header.split(' ',1)[1])
         else:
             payload = None
-        if payload and payload.get('role') == 'STUDENT' and payload.get('user_id') != student.user.id:
-            return _json({'error': 'forbidden'}, status=403)
+        if payload and payload.get('role') == 'STUDENT':
+            pid = payload.get('user_id')
+            # allow when token's user_id matches either the Student.user.id or the Student.id
+            if pid != student.user.id and pid != student.id:
+                return _json({'error': 'forbidden'}, status=403)
         if payload and payload.get('role') == 'HOD':
             hod_user = User.objects.filter(id=payload.get('user_id')).first()
             dept = Department.objects.filter(hod=hod_user).first()

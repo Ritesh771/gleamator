@@ -44,8 +44,8 @@ export default function StudentDashboard() {
       }, 0) / marks.length) : null
 
       setStats([
-        { title: 'Attendance', value: avgAtt != null ? `${avgAtt}%` : '—', meta: 'This semester', spark: vals.slice(-8) },
-        { title: 'Average Marks', value: avgMarks != null ? `${avgMarks}%` : '—', meta: marks.length ? `${marks.length} exams` : '' },
+        { title: 'Attendance', value: avgAtt != null ? `${avgAtt}%` : '—', meta: 'This semester', spark: vals.slice(-8), chartType: 'circle', chartValue: avgAtt || 0 },
+        { title: 'Average Marks', value: avgMarks != null ? `${avgMarks}%` : '—', meta: marks.length ? `${marks.length} exams` : '', chartType: 'circle', chartValue: avgMarks || 0 },
         { title: 'Credits', value: studentData && studentData.credits != null ? String(studentData.credits) : '—', meta: 'Total credits' }
       ])
 
@@ -79,7 +79,7 @@ export default function StudentDashboard() {
         {loading && <div>Loading...</div>}
 
         <div className="stats-grid" style={{ marginTop: 12 }}>
-          {stats.map(s => <StatsCard key={s.title} {...s} />)}
+          {stats.map(s => <StatsCard key={s.title} {...s} className="hod-card" />)}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 440px', gap: 20, marginTop: 20 }}>

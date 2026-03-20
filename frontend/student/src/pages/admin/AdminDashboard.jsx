@@ -58,12 +58,20 @@ export default function AdminDashboard() {
     return () => { mounted = false }
   }, [])
 
-  const stats = adminStats ? [
-    { title: 'Total Users', value: adminStats.total_users, meta: `${adminStats.admins} admins • ${adminStats.faculty} faculty • ${adminStats.students} students`, variant: 'purple', spark: [5,8,12,9,14,16,18] },
-    { title: 'Departments', value: adminStats.departments, meta: 'Active departments', variant: 'green', spark: [1,1,2,2,2,3,1] },
-    { title: 'Faculty', value: adminStats.faculty, meta: 'Total faculty', variant: 'blue', spark: [2,3,3,4,5,4,6] },
-    { title: 'Students', value: adminStats.students, meta: 'Total students', variant: 'orange', spark: [8,9,11,10,14,13,15] },
-  ] : []
+  const stats = adminStats ? (() => {
+    const calcPct = (arr) => {
+      if (!arr || arr.length === 0) return 0
+      const max = Math.max(...arr)
+      if (!max) return 0
+      return Math.round((arr[arr.length - 1] / max) * 100)
+    }
+    return [
+      { title: 'Total Users', value: adminStats.total_users, meta: `${adminStats.admins} admins • ${adminStats.faculty} faculty • ${adminStats.students} students`, variant: 'purple', spark: [5,8,12,9,14,16,18], chartType: 'circle', chartValue: calcPct([5,8,12,9,14,16,18]) },
+      { title: 'Departments', value: adminStats.departments, meta: 'Active departments', variant: 'green', spark: [1,1,2,2,2,3,1], chartType: 'circle', chartValue: calcPct([1,1,2,2,2,3,1]) },
+      { title: 'Faculty', value: adminStats.faculty, meta: 'Total faculty', variant: 'blue', spark: [2,3,3,4,5,4,6], chartType: 'circle', chartValue: calcPct([2,3,3,4,5,4,6]) },
+      { title: 'Students', value: adminStats.students, meta: 'Total students', variant: 'orange', spark: [8,9,11,10,14,13,15], chartType: 'circle', chartValue: calcPct([8,9,11,10,14,13,15]) },
+    ]
+  })() : []
 
   const studentData = deptStats.map(d => ({ label: d.code, value: d.students || 0, color: '#f59e0b' }))
   const facultyData = deptStats.map(d => ({ label: d.code, value: d.faculty || 0, color: '#06b6d4' }))
@@ -79,7 +87,7 @@ export default function AdminDashboard() {
             <div className="card">Loading stats…</div>
           )}
           {stats.map((s, i) => (
-            <StatsCard key={s.title} title={s.title} value={<AnimatedNumber value={s.value} format={v => v.toLocaleString()} />} meta={s.meta} variant={s.variant} spark={s.spark} />
+            <StatsCard key={s.title} title={s.title} value={<AnimatedNumber value={s.value} format={v => v.toLocaleString()} />} meta={s.meta} variant={s.variant} spark={s.spark} className="hod-card" chartType={s.chartType} chartValue={s.chartValue} />
           ))}
         </div>
 

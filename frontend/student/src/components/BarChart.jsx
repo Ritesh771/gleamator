@@ -14,7 +14,8 @@ export default function BarChart({ data = [], width = 200, height = 96, format =
         const y = i * (barHeight + 8)
         if (y > height - barHeight) return null // ensure we don't render outside of viewbox
         const w = Math.max(0, Math.round((d.value / max) * chartWidth))
-        const color = d.color || (d.label === 'Admins' ? '#7c3aed' : d.label === 'Faculty' ? '#06b6d4' : '#f59e0b')
+        const defaultColor = d.label === 'Admins' ? 'var(--accent)' : d.label === 'Faculty' ? 'var(--accent-2)' : '#fb6f4f'
+        const color = d.color || defaultColor
         const truncatedLabel = (d.label || '').length > 10 ? `${(d.label || '').slice(0, 9)}…` : d.label
         return (
           <g key={d.label} transform={`translate(0, ${y})`}>

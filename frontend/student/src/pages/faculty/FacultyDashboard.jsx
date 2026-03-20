@@ -41,7 +41,7 @@ export default function FacultyDashboard() {
       <div style={{ padding: 24 }}>
         <h2>Faculty Dashboard</h2>
         <div className="stats-grid">
-          {(stats || [{ title: 'Classes Today', value: '—', meta: '' }, { title: 'Pending Attendance', value: '—', meta: '' }]).map(s => <StatsCard key={s.title} {...s} />)}
+          {(stats || [{ title: 'Classes Today', value: '—', meta: '' }, { title: 'Pending Attendance', value: '—', meta: '' }]).map(s => <StatsCard key={s.title} {...s} className="hod-card" />)}
         </div>
 
         <div style={{ marginTop: 18 }}>

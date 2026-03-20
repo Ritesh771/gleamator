@@ -7,6 +7,7 @@ export default function Header() {
     <header className="app-header">
       <div className="brand">
         <img src="/Gleamator-Logo-Transparent.png" className="brand-logo" alt="Gleamator" />
+        <span className="brand-title">Growvo Campus</span>
       </div>
       <div className="header-actions">
         {user ? (

@@ -60,10 +60,21 @@ export default function HodDashboard() {
       const res = await api.get(`/stats/department/${code}/`)
       const d = res.data || {}
       setDeptStats(d)
+      // compute lightweight percent for students/faculty from spark arrays (last / max)
+      const studentSpark = [8,9,11,10,14,13,15]
+      const facultySpark = [2,3,3,4,5,4,6]
+      const attendanceSpark = [1,2,1,3,2,2,1]
+      const calcPct = (arr) => {
+        if (!arr || arr.length === 0) return 0
+        const max = Math.max(...arr)
+        if (!max) return 0
+        return Math.round((arr[arr.length - 1] / max) * 100)
+      }
+
       setStats([
-        { title: 'Dept Students', value: d.students != null ? d.students : '—', meta: 'Active students', variant: 'orange', spark: [8,9,11,10,14,13,15] },
-        { title: 'Dept Faculty', value: d.faculty != null ? d.faculty : '—', meta: 'Faculty count', variant: 'blue', spark: [2,3,3,4,5,4,6] },
-        { title: 'Avg Attendance', value: d.average_attendance != null ? `${d.average_attendance}%` : '—', meta: 'Department average', variant: 'green', spark: [1,2,1,3,2,2,1] }
+        { title: 'Dept Students', value: d.students != null ? d.students : '—', meta: 'Active students', variant: 'orange', spark: studentSpark, chartType: 'circle', chartValue: calcPct(studentSpark) },
+        { title: 'Dept Faculty', value: d.faculty != null ? d.faculty : '—', meta: 'Faculty count', variant: 'blue', spark: facultySpark, chartType: 'circle', chartValue: calcPct(facultySpark) },
+        { title: 'Avg Attendance', value: d.average_attendance != null ? `${d.average_attendance}%` : '—', meta: 'Department average', variant: 'green', spark: attendanceSpark, chartType: 'circle', chartValue: d.average_attendance != null ? d.average_attendance : 0 }
       ])
       // load semester-wise stats (aggregate student attendance by semester)
       loadSemesterStats(deptObj)
@@ -76,8 +87,8 @@ export default function HodDashboard() {
         const f = await api.get('faculty/', { params: { department: deptObj.code, page: 1, page_size: 1 } })
         const facultyCount = f.data.count || (Array.isArray(f.data) ? f.data.length : undefined)
         setStats([
-          { title: 'Dept Students', value: studentsCount != null ? String(studentsCount) : '—', meta: 'Active students', variant: 'orange' },
-          { title: 'Dept Faculty', value: facultyCount != null ? String(facultyCount) : '—', meta: 'Faculty count', variant: 'blue' }
+          { title: 'Dept Students', value: studentsCount != null ? String(studentsCount) : '—', meta: 'Active students', variant: 'orange', chartType: 'circle', chartValue: 60 },
+          { title: 'Dept Faculty', value: facultyCount != null ? String(facultyCount) : '—', meta: 'Faculty count', variant: 'blue', chartType: 'circle', chartValue: 40 }
         ])
       } catch (e2) {
         console.error('fallback stats failed', e2)
@@ -95,10 +106,19 @@ export default function HodDashboard() {
       const perStudent = await Promise.all(list.map(async (s) => {
         try {
           const r = await api.get(`attendance/student/${s.id}/`)
-          const att = r.data && r.data.attendance ? r.data.attendance : []
-          const vals = att.map(a => a.attendance_percent).filter(v => v != null)
-          const avg = vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null
-          return { id: s.id, semester: s.semester, attendance_percent: avg }
+          // Prefer `summary` field (per-subject percentages) returned by the endpoint
+          const summary = r.data && Array.isArray(r.data.summary) ? r.data.summary : null
+          if (summary) {
+            const vals = summary.map(a => a.attendance_percent).filter(v => v != null)
+            const avg = vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null
+            return { id: s.id, semester: s.semester, attendance_percent: avg }
+          }
+          // Fallback: use detailed `attendance` records (present vs total)
+          const records = r.data && Array.isArray(r.data.attendance) ? r.data.attendance : []
+          if (records.length === 0) return { id: s.id, semester: s.semester, attendance_percent: null }
+          const presentCount = records.filter(rr => rr.present === true || rr.status === 'P').length
+          const avg2 = Math.round((presentCount / records.length) * 100)
+          return { id: s.id, semester: s.semester, attendance_percent: avg2 }
         } catch (e) {
           return { id: s.id, semester: s.semester, attendance_percent: null }
         }
@@ -133,7 +153,17 @@ export default function HodDashboard() {
             <div className="card">Loading stats…</div>
           )}
           {stats.map((s) => (
-            <StatsCard key={s.title} title={s.title} value={<AnimatedNumber value={s.value === '—' ? 0 : s.value} format={v => (typeof s.value === 'string' && s.value.endsWith('%') ? `${s.value}` : v.toLocaleString())} />} meta={s.meta} variant={s.variant} spark={s.spark} />
+            <StatsCard
+              key={s.title}
+              title={s.title}
+              value={<AnimatedNumber value={s.value === '—' ? 0 : s.value} format={v => (typeof s.value === 'string' && s.value.endsWith('%') ? `${s.value}` : v.toLocaleString())} />}
+              meta={s.meta}
+              variant={s.variant}
+              spark={s.spark}
+              className="hod-card"
+              chartType={s.chartType}
+              chartValue={s.chartValue}
+            />
           ))}
         </div>
 

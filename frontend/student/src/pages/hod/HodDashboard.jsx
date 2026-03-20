@@ -95,10 +95,19 @@ export default function HodDashboard() {
       const perStudent = await Promise.all(list.map(async (s) => {
         try {
           const r = await api.get(`attendance/student/${s.id}/`)
-          const att = r.data && r.data.attendance ? r.data.attendance : []
-          const vals = att.map(a => a.attendance_percent).filter(v => v != null)
-          const avg = vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null
-          return { id: s.id, semester: s.semester, attendance_percent: avg }
+          // Prefer `summary` (per-subject percentages) returned by the endpoint
+          const summary = r.data && Array.isArray(r.data.summary) ? r.data.summary : null
+          if (summary) {
+            const vals = summary.map(a => a.attendance_percent).filter(v => v != null)
+            const avg = vals.length ? Math.round(vals.reduce((a,b) => a+b, 0) / vals.length) : null
+            return { id: s.id, semester: s.semester, attendance_percent: avg }
+          }
+          // Fallback: compute percent from detailed attendance records
+          const records = r.data && Array.isArray(r.data.attendance) ? r.data.attendance : []
+          if (records.length === 0) return { id: s.id, semester: s.semester, attendance_percent: null }
+          const presentCount = records.filter(rr => rr.present === true || rr.status === 'P').length
+          const avg2 = Math.round((presentCount / records.length) * 100)
+          return { id: s.id, semester: s.semester, attendance_percent: avg2 }
         } catch (e) {
           return { id: s.id, semester: s.semester, attendance_percent: null }
         }

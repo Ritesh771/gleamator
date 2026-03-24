@@ -25,6 +25,7 @@ import AdminFaculty from './pages/admin/AdminFaculty'
 import AdminHods from './pages/admin/AdminHods'
 import StudentAttendance from './pages/student/StudentAttendance'
 import StudentMarks from './pages/student/StudentMarks'
+import Leaderboard from './pages/student/Leaderboard'
 
 export default function App() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
           <Route path="/student/profile" element={<Layout><ProtectedRoute allowedRoles={["STUDENT"]}><StudentProfile /></ProtectedRoute></Layout>} />
           <Route path="/student/attendance" element={<Layout><ProtectedRoute allowedRoles={["STUDENT"]}><StudentAttendance /></ProtectedRoute></Layout>} />
           <Route path="/student/marks" element={<Layout><ProtectedRoute allowedRoles={["STUDENT"]}><StudentMarks /></ProtectedRoute></Layout>} />
+          <Route path="/student/leaderboard" element={<Layout><ProtectedRoute allowedRoles={["STUDENT","FACULTY","HOD","ADMIN"]}><Leaderboard /></ProtectedRoute></Layout>} />
           <Route path="/admin" element={<Layout><ProtectedRoute allowedRoles={["ADMIN"]}><AdminDashboard /></ProtectedRoute></Layout>} />
           <Route path="/hod" element={<Layout><ProtectedRoute allowedRoles={["HOD"]}><HodDashboard /></ProtectedRoute></Layout>} />
           <Route path="/faculty" element={<Layout><ProtectedRoute allowedRoles={["FACULTY"]}><FacultyDashboard /></ProtectedRoute></Layout>} />

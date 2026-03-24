@@ -14,6 +14,7 @@ urlpatterns = [
 
     path('users/', views.users_list_create, name='users-list-create'),
     path('users/<int:user_id>/', views.users_detail, name='users-detail'),
+    path('users/bulk_delete/', views.users_bulk_delete, name='users-bulk-delete'),
 
     path('faculty/', views.faculty_list_create, name='faculty-list-create'),
     path('faculty/<int:faculty_id>/', views.faculty_detail, name='faculty-detail'),
@@ -42,6 +43,7 @@ urlpatterns = [
     # Marks
     path('marks/upload/', views.upload_marks, name='marks-upload'),
     path('marks/student/<int:student_id>/', views.marks_student, name='marks-student'),
+    path('students/leaderboard/', views.students_leaderboard, name='students-leaderboard'),
 
     # Stats
     path('stats/department/<str:code>/', views.stats_department, name='stats-department'),

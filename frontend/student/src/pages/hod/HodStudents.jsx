@@ -181,10 +181,30 @@ export default function HodStudents() {
     }
   }
 
+  // build dynamic confirm message showing chosen items
+  let confirmTitle = 'Confirm'
+  let confirmMessage = 'Are you sure?'
+  if (confirmPayload) {
+    if (confirmPayload.type === 'student') {
+      const s = students.find(x => x.id === confirmPayload.id)
+      const name = s ? (s.user?.username || `${s.user?.first_name || s.first_name || ''} ${s.user?.last_name || s.last_name || ''}`.trim()) : `the student (${confirmPayload.id})`
+      confirmTitle = 'Delete student'
+      confirmMessage = `Are you sure you want to delete ${name}? This action cannot be undone.`
+    }
+    if (confirmPayload.type === 'bulk') {
+      const ids = confirmPayload.ids || []
+      const sel = students.filter(x => ids.includes(x.id))
+      const names = sel.map(s => s.user?.username || `${s.user?.first_name || s.first_name || ''} ${s.user?.last_name || s.last_name || ''}`.trim())
+      const preview = names.slice(0, 8).join(', ') + (names.length > 8 ? `, and ${names.length - 8} more` : '')
+      confirmTitle = `Delete ${ids.length} students`
+      confirmMessage = `Are you sure you want to delete the following students? ${preview}. This action cannot be undone.`
+    }
+  }
+
   return (
     <div style={{ padding: 24 }}>
       <h2>Department Students{dept ? ` — ${dept.name}` : ''}</h2>
-      <ConfirmModal open={confirmOpen} title="Delete student" message="Are you sure you want to delete this student?" onConfirm={handleConfirmDelete} onCancel={() => setConfirmOpen(false)} />
+      <ConfirmModal open={confirmOpen} title={confirmTitle} message={confirmMessage} onConfirm={handleConfirmDelete} onCancel={() => setConfirmOpen(false)} />
 
       {dept ? (
         <>

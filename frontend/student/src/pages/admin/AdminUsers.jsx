@@ -20,6 +20,7 @@ export default function AdminUsers() {
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', role: '' })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmPayload, setConfirmPayload] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
 
   useEffect(() => { fetchUsers() }, [])
   useEffect(() => { fetchDepartments() }, [])
@@ -121,12 +122,43 @@ export default function AdminUsers() {
     setConfirmOpen(true)
   }
 
+  function toggleSelect(id, name) {
+    setSelectedIds((prev) => {
+      const s = new Set(prev)
+      if (s.has(id)) s.delete(id)
+      else s.add(id)
+      return Array.from(s)
+    })
+  }
+
+  function toggleSelectAll() {
+    if (!users || users.length === 0) return
+    const allIds = users.map(u => u.id)
+    const allSelected = allIds.every(i => selectedIds.includes(i))
+    setSelectedIds(allSelected ? [] : allIds)
+  }
+
+  function startBulkDelete() {
+    if (!selectedIds || selectedIds.length === 0) return
+    const names = users.filter(u => selectedIds.includes(u.id)).map(u => u.username || `${u.first_name} ${u.last_name}`)
+    setConfirmPayload({ type: 'bulk_users', ids: selectedIds, names })
+    setConfirmOpen(true)
+  }
+
   async function handleConfirmDelete() {
     if (!confirmPayload) return
     try {
       if (confirmPayload.type === 'user') {
         await api.delete(`users/${confirmPayload.id}/`)
         notify({ type: 'success', message: 'User deleted' })
+      }
+      if (confirmPayload.type === 'bulk_users') {
+        const res = await api.post('users/bulk_delete/', { ids: confirmPayload.ids })
+        const deleted = res.data.deleted || 0
+        const failed = res.data.failed || []
+        notify({ type: 'success', message: `Deleted ${deleted} user(s). ${failed.length ? `${failed.length} failed.` : ''}` })
+        // clear selection for deleted ids
+        setSelectedIds([])
       }
       setConfirmOpen(false)
       setConfirmPayload(null)
@@ -192,17 +224,20 @@ export default function AdminUsers() {
           <option value="STUDENT">STUDENT</option>
         </select>
         <button onClick={handleExport} className="btn-icon">Export to Excel</button>
+        <button onClick={startBulkDelete} className="btn-icon btn-danger" disabled={!selectedIds || selectedIds.length===0}>Bulk Delete{selectedIds && selectedIds.length ? ` (${selectedIds.length})` : ''}</button>
         {/* role filter auto-applies; no Filter button needed */}
       </div>
 
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
+            <th style={{ textAlign: 'left', padding: 8 }}><input type="checkbox" onChange={toggleSelectAll} checked={users && users.length>0 && users.every(u => selectedIds.includes(u.id))} /></th>
             <th style={{ textAlign: 'left', padding: 8 }}>First Name</th>
             <th style={{ textAlign: 'left', padding: 8 }}>Last Name</th>
             <th style={{ textAlign: 'left', padding: 8 }}>Username</th>
             <th style={{ textAlign: 'left', padding: 8 }}>Email</th>
             <th style={{ textAlign: 'left', padding: 8 }}>Role</th>
+            <th style={{ textAlign: 'left', padding: 8 }}>Created At</th>
             <th style={{ textAlign: 'left', padding: 8 }}>Actions</th>
           </tr>
         </thead>
@@ -210,6 +245,9 @@ export default function AdminUsers() {
           {users.map((u) => (
             editingId === u.id ? (
               <tr key={u.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                <td style={{ padding: 8 }}>
+                  <input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelect(u.id)} />
+                </td>
                 <td style={{ padding: 8 }}>
                   <input id={`edit-first-${u.id}`} value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} />
                 </td>
@@ -228,6 +266,7 @@ export default function AdminUsers() {
                     <option value="ADMIN">ADMIN</option>
                   </select>
                 </td>
+                <td style={{ padding: 8 }}>{u.created_at ? (new Date(u.created_at)).toLocaleString() : ''}</td>
                 <td style={{ padding: 8 }}>
                   <button className="btn-icon" onClick={saveEdit} style={{ marginRight: 8 }}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>
@@ -238,11 +277,15 @@ export default function AdminUsers() {
               </tr>
             ) : (
               <tr key={u.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                <td style={{ padding: 8 }}>
+                  <input type="checkbox" checked={selectedIds.includes(u.id)} onChange={() => toggleSelect(u.id)} />
+                </td>
                 <td style={{ padding: 8 }}>{u.first_name}</td>
                 <td style={{ padding: 8 }}>{u.last_name}</td>
                 <td style={{ padding: 8 }}>{u.username}</td>
                 <td style={{ padding: 8 }}>{u.email}</td>
                 <td style={{ padding: 8 }}>{u.role}</td>
+                    <td style={{ padding: 8 }}>{u.created_at ? (new Date(u.created_at)).toLocaleString() : ''}</td>
                 <td style={{ padding: 8 }}>
                   <button className="btn-icon" onClick={() => startEdit(u)} style={{ marginRight: 8 }} aria-label="Edit">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>

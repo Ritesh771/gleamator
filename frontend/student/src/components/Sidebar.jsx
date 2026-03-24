@@ -79,6 +79,7 @@ export default function Sidebar() {
                 <li><NavLink to="/student/profile" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="profile"/></span><span className="label">My Profile</span></NavLink></li>
                 <li><NavLink to="/student/attendance" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="students"/></span><span className="label">My Attendance</span></NavLink></li>
                 <li><NavLink to="/student/marks" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="marks"/></span><span className="label">My Marks</span></NavLink></li>
+                <li><NavLink to="/student/leaderboard" className={({isActive})=> isActive ? 'sidebar-link active' : 'sidebar-link'}><span className="icon"><Icon name="students"/></span><span className="label">Leaderboard</span></NavLink></li>
               </>
             )}
           </ul>

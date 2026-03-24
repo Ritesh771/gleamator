@@ -20,6 +20,8 @@ export default function HodStudents() {
   const [editForm, setEditForm] = useState({ first_name: '', last_name: '', email: '', semester: 1, section: 'A' })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmPayload, setConfirmPayload] = useState(null)
+  const [selectedIds, setSelectedIds] = useState([])
+  const [uploadFileObj, setUploadFileObj] = useState(null)
   const searchTimer = useRef(null)
 
   useEffect(() => { fetchDept() }, [user])
@@ -109,12 +111,66 @@ export default function HodStudents() {
     setConfirmOpen(true)
   }
 
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter(x => x !== id)
+      return [...prev, id]
+    })
+  }
+
+  function handleFileChange(e) {
+    setUploadFileObj(e.target.files?.[0] || null)
+  }
+
+  async function downloadTemplate() {
+    try {
+      const res = await api.get('students/template/', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'students_template.csv'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error(err)
+      notify({ type: 'error', message: 'Failed to download template' })
+    }
+  }
+
+  async function uploadFile() {
+    if (!uploadFileObj) { notify({ type: 'error', message: 'Select a CSV file first' }); return }
+    const form = new FormData()
+    form.append('file', uploadFileObj)
+    try {
+      const res = await api.post('students/bulk_upload/', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      notify({ type: 'success', message: `${res.data.created} created, ${res.data.skipped} skipped` })
+      setUploadFileObj(null)
+      fetchStudents()
+    } catch (err) {
+      console.error(err)
+      notify({ type: 'error', message: err?.response?.data?.error || 'Upload failed' })
+    }
+  }
+
+  function confirmBulkDelete() {
+    if (!selectedIds.length) { notify({ type: 'error', message: 'No students selected' }); return }
+    setConfirmPayload({ type: 'bulk', ids: selectedIds })
+    setConfirmOpen(true)
+  }
+
   async function handleConfirmDelete() {
     if (!confirmPayload) return
     try {
       if (confirmPayload.type === 'student') {
         await api.delete(`students/${confirmPayload.id}/`)
         notify({ type: 'success', message: 'Student deleted' })
+      }
+      if (confirmPayload.type === 'bulk') {
+        await api.post('students/bulk_delete/', { ids: confirmPayload.ids })
+        notify({ type: 'success', message: 'Selected students deleted' })
+        setSelectedIds([])
       }
       setConfirmOpen(false)
       setConfirmPayload(null)
@@ -148,12 +204,19 @@ export default function HodStudents() {
             <button type="submit" className="btn-icon btn-success">Create Student</button>
           </form>
           <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn-icon" onClick={downloadTemplate} type="button">Download Template</button>
+            <input type="file" accept=".csv" onChange={handleFileChange} />
+            <button className="btn-icon btn-success" onClick={uploadFile} type="button">Upload CSV</button>
+            <button className="btn-icon btn-danger" onClick={confirmBulkDelete} type="button">Delete Selected</button>
+          </div>
+          <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
             <input placeholder="Search students" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
           {loading && <div>Loading...</div>}
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
+                <th style={{ textAlign: 'left', padding: 8 }}>Select</th>
                 <th style={{ textAlign: 'left', padding: 8 }}>First Name</th>
                 <th style={{ textAlign: 'left', padding: 8 }}>Last Name</th>
                 <th style={{ textAlign: 'left', padding: 8 }}>Email</th>
@@ -168,6 +231,7 @@ export default function HodStudents() {
               {students.map((s) => (
                 editingId === s.id ? (
                   <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                    <td style={{ padding: 8 }}><input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} /></td>
                     <td style={{ padding: 8 }}><input id={`edit-first-${s.id}`} value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} /></td>
                     <td style={{ padding: 8 }}><input value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} /></td>
                     <td style={{ padding: 8 }}><input value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} /></td>
@@ -190,6 +254,7 @@ export default function HodStudents() {
                   </tr>
                 ) : (
                   <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                    <td style={{ padding: 8 }}><input type="checkbox" checked={selectedIds.includes(s.id)} onChange={() => toggleSelect(s.id)} /></td>
                     <td style={{ padding: 8 }}>{s.user?.first_name || s.first_name}</td>
                     <td style={{ padding: 8 }}>{s.user?.last_name || s.last_name}</td>
                     <td style={{ padding: 8 }}>{s.email || s.user?.email}</td>

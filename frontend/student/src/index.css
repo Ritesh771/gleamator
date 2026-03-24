@@ -105,6 +105,10 @@ aside { min-height: 100vh; }
 input, select { padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--text); margin-right: 8px }
 table { border-collapse: collapse; width: 100%; margin-top: 12px }
 th, td { text-align: left; padding: 8px; border-bottom: 1px solid rgba(0,0,0,0.04) }
+
+/* subtle vertical dividers between columns */
+.app-content table th, .app-content table td, table th, table td { border-right: 1px solid rgba(0,0,0,0.04) }
+.app-content table th:last-child, .app-content table td:last-child, table th:last-child, table td:last-child { border-right: none }
 .card { background: var(--card); padding: 14px; border-radius: 10px; box-shadow: 0 6px 18px rgba(16,24,40,0.06); border: 1px solid rgba(16,24,40,0.04) }
 
 button {
@@ -209,6 +213,10 @@ button:focus-visible { outline: 4px auto -webkit-focus-ring-color; }
 }
 
 .stats-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap: 16px; margin-bottom: 18px }
+
+/* Page helper: fill available space and make inner table scroll instead of the whole page */
+.page-full { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.page-full .table-wrap { overflow: auto; flex: 1 1 auto; }
 .stat-card {
   padding: 16px;
   border-radius: 12px;
@@ -314,7 +322,8 @@ h1 { font-size: 3.2em; line-height: 1.1; }
 .btn-danger:hover { background: #dc2626 }
 .btn-success { color: #fff; background: #10b981; border-color: rgba(16,185,129,0.2) }
 .btn-success:hover { background: #059669 }
-.btn-outline { background: transparent; border: 1px solid rgba(16,24,40,0.06); padding:6px 10px; border-radius:8px }
+.btn-outline { background: transparent; border: 1px solid rgba(16,24,40,0.12); padding:6px 10px; border-radius:8px; color: var(--text) }
+.btn-outline:hover { background: rgba(0,0,0,0.03) }
 
 .list-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; border-radius:10px; background: linear-gradient(180deg,var(--card),var(--panel)); border:1px solid var(--border); margin-bottom:8px }
 .list-row .meta { color: var(--muted); font-size:0.95rem }

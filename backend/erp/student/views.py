@@ -12,6 +12,7 @@ from .models import (
     User, Department, Faculty, Student, Subject,
     FacultySubject, AttendanceSession, AttendanceRecord, Marks
 )
+from django.db.models import Sum
 from .auth import generate_jwt, decode_jwt, require_auth
 from .auth import generate_refresh_token
 from django.utils import timezone
@@ -417,7 +418,15 @@ def users_list_create(request):
         if role_filter:
             qs = qs.filter(role__iexact=role_filter)
         page_qs, meta = paginate_queryset(list(qs), request)
-        out = [{'id': u.id, 'username': u.username, 'first_name': u.first_name, 'last_name': u.last_name, 'email': u.email, 'role': u.role} for u in page_qs]
+        out = [{
+            'id': u.id,
+            'username': u.username,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'email': u.email,
+            'role': u.role,
+            'created_at': u.date_joined.isoformat() if getattr(u, 'date_joined', None) else None
+        } for u in page_qs]
         return _json({'results': out, 'meta': meta})
 
     return _json({'error': 'method not allowed'}, status=405)
@@ -429,7 +438,15 @@ def users_detail(request, user_id):
     user_obj = get_object_or_404(User, id=user_id)
 
     if request.method == 'GET':
-        return _json({'id': user_obj.id, 'username': user_obj.username, 'first_name': user_obj.first_name, 'last_name': user_obj.last_name, 'email': user_obj.email, 'role': user_obj.role})
+        return _json({
+            'id': user_obj.id,
+            'username': user_obj.username,
+            'first_name': user_obj.first_name,
+            'last_name': user_obj.last_name,
+            'email': user_obj.email,
+            'role': user_obj.role,
+            'created_at': user_obj.date_joined.isoformat() if getattr(user_obj, 'date_joined', None) else None
+        })
 
     if request.method == 'PUT':
         try:
@@ -453,6 +470,41 @@ def users_detail(request, user_id):
         return _json({'status': 'deleted'})
 
     return _json({'error': 'method not allowed'}, status=405)
+
+
+@csrf_exempt
+@require_auth(allowed=['ADMIN'])
+def users_bulk_delete(request):
+    """Delete multiple users. Expects JSON: { ids: [user_id, ...] }
+    Admin only. Prevents deleting the requesting user.
+    """
+    if request.method != 'POST':
+        return _json({'error': 'method not allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return _json({'error': 'invalid json'}, status=400)
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        return _json({'error': 'ids must be a non-empty list'}, status=400)
+    user_req = request.request_user
+    deleted = 0
+    failed = []
+    for uid in ids:
+        try:
+            u = User.objects.filter(id=int(uid)).first()
+            if not u:
+                failed.append({'id': uid, 'error': 'not found'})
+                continue
+            if u.id == user_req.id:
+                failed.append({'id': uid, 'error': 'cannot delete yourself'})
+                continue
+            # perform delete (cascades to profiles like Student/Faculty via on_delete)
+            u.delete()
+            deleted += 1
+        except Exception as e:
+            failed.append({'id': uid, 'error': str(e)})
+    return _json({'deleted': deleted, 'failed': failed})
 
 
 # Faculty detail (get/update/delete)
@@ -678,8 +730,8 @@ def attendance_student(request, student_id):
     if not student:
         return _json({'error': 'student not found'}, status=404)
 
-    # Recent attendance records (detailed)
-    recs_qs = AttendanceRecord.objects.select_related('session__subject', 'session__faculty').filter(student=student).order_by('-session__date')
+    # Recent attendance records (detailed) - limit to latest 7
+    recs_qs = AttendanceRecord.objects.select_related('session__subject', 'session__faculty').filter(student=student).order_by('-session__date')[:7]
     records = []
     for r in recs_qs:
         records.append({
@@ -1321,6 +1373,109 @@ def stats_overview(request):
             counts += 1
     avg_attendance = int(totals / (counts or 1)) if counts else None
     return _json({'departments': total_departments, 'students': total_students, 'faculty': total_faculty, 'average_attendance': avg_attendance})
+
+
+@csrf_exempt
+@require_auth(allowed=['ADMIN','HOD','FACULTY','STUDENT'])
+def students_leaderboard(request):
+    """Return leaderboard (rankings) for students in a department+semester.
+
+    Query params:
+      - department: department id or code (optional for STUDENT/HOD/FACULTY)
+      - semester: integer semester (optional for STUDENT)
+
+    If called by a STUDENT, their department and semester are used when params omitted.
+    """
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+
+    dept_param = request.GET.get('department')
+    sem_param = request.GET.get('semester')
+    user = request.request_user
+
+    dept = None
+    sem = None
+    # Infer when missing for students/faculty/hod
+    if dept_param is None or sem_param is None:
+        if user.role == 'STUDENT':
+            st = Student.objects.filter(user=user).first()
+            if not st:
+                return _json({'error': 'student profile not found'}, status=404)
+            dept = st.department
+            sem = st.semester
+        elif user.role == 'FACULTY':
+            fac = Faculty.objects.filter(user=user).first()
+            if fac and dept_param is None:
+                dept = fac.department
+            if sem_param:
+                try:
+                    sem = int(sem_param)
+                except Exception:
+                    sem = None
+        elif user.role == 'HOD':
+            if dept_param is None:
+                dept = Department.objects.filter(hod=user).first()
+            if sem_param:
+                try:
+                    sem = int(sem_param)
+                except Exception:
+                    sem = None
+
+    # If still missing, use provided params
+    if dept is None and dept_param is not None:
+        try:
+            did = int(dept_param)
+            dept = Department.objects.filter(id=did).first()
+        except Exception:
+            dept = Department.objects.filter(code__iexact=dept_param).first()
+
+    if sem is None and sem_param is not None:
+        try:
+            sem = int(sem_param)
+        except Exception:
+            sem = None
+
+    if not dept:
+        return _json({'error': 'department required or not found'}, status=400)
+    if sem is None:
+        return _json({'error': 'semester required'}, status=400)
+
+    qs = Student.objects.select_related('user').filter(department=dept, semester=sem)
+    # annotate sums of obtained and max marks
+    qs = qs.annotate(total_obtained=Sum('marks__marks_obtained'), total_max=Sum('marks__max_marks'))
+
+    out = []
+    for s in qs:
+        obtained = float(s.total_obtained or 0)
+        maxm = float(s.total_max or 0)
+        pct = round((obtained / maxm) * 100, 2) if maxm else None
+        out.append({
+            'student_id': s.id,
+            'username': s.user.username,
+            'first_name': s.user.first_name,
+            'last_name': s.user.last_name,
+            'usn': getattr(s, 'usn', None),
+            'total_obtained': obtained,
+            'total_max': maxm,
+            'percent': pct
+        })
+
+    # sort: highest percent first, treat None as last
+    out.sort(key=lambda x: (x['percent'] is None, -(x['percent'] or 0)))
+
+    # assign competition-style ranks (ties share rank, next rank skips)
+    prev_pct = None
+    prev_rank = 0
+    for idx, item in enumerate(out):
+        if item['percent'] == prev_pct:
+            item['rank'] = prev_rank
+        else:
+            rank = idx + 1
+            item['rank'] = rank
+            prev_rank = rank
+            prev_pct = item['percent']
+
+    return _json({'department': dept.name, 'semester': sem, 'results': out})
 
 
 @csrf_exempt

@@ -31,7 +31,7 @@ export default function StudentAttendance() {
   const spark = attendance.slice(-12).map(a => a.attendance_percent != null ? a.attendance_percent : (a.present ? 100 : 0))
 
   return (
-    <div style={{ padding: 24 }}>
+    <div className="page-full" style={{ padding: 24 }}>
       <h2>My Attendance</h2>
       {error && <Alert>{error}</Alert>}
       {loading && <div>Loading...</div>}
@@ -42,12 +42,12 @@ export default function StudentAttendance() {
         <StatsCard title="Absent" value={String(total - present)} meta="Sessions absent" />
       </div>
 
-      <section>
+      <section style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         <h3>Records</h3>
-        {attendance.length === 0 ? (
+          {attendance.length === 0 ? (
           <div>No attendance records found.</div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap" style={{ display: 'block' }}>
             <table>
               <thead>
                 <tr><th>Date</th><th>Subject</th><th>Present</th><th>Notes</th></tr>

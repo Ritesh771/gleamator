@@ -8,6 +8,9 @@ urlpatterns = [
 
     path('students/', views.students_list_create, name='students-list-create'),
     path('students/<int:student_id>/', views.students_detail, name='students-detail'),
+    path('students/template/', views.students_template, name='students-template'),
+    path('students/bulk_upload/', views.students_bulk_upload, name='students-bulk-upload'),
+    path('students/bulk_delete/', views.students_bulk_delete, name='students-bulk-delete'),
 
     path('users/', views.users_list_create, name='users-list-create'),
     path('users/<int:user_id>/', views.users_detail, name='users-detail'),

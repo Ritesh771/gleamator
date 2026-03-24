@@ -17,6 +17,8 @@ from .auth import generate_refresh_token
 from django.utils import timezone
 import csv
 from django.http import HttpResponse
+import io
+import codecs
 
 
 def _json(data, status=200):
@@ -729,6 +731,142 @@ def attendance_report(request):
             avg = int(totals / (counts or 1)) if counts else None
         report.append({'department': d.name, 'students': total_students, 'average_attendance': avg})
     return _json(report)
+
+
+@csrf_exempt
+@require_auth(allowed=['ADMIN','HOD'])
+def students_template(request):
+    """Return a CSV template for bulk student enrollments."""
+    if request.method != 'GET':
+        return _json({'error': 'method not allowed'}, status=405)
+    # columns: first_name,last_name,email,username,password,usn,semester,section,department_code
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="students_template.csv"'
+    writer = csv.writer(response)
+    writer.writerow(['first_name','last_name','email','username','password','usn','semester','section','department_code'])
+    # example row
+    writer.writerow(['Aditya','Kumar','cse_stu1@example.local','cse_stu1','changeme','USNCSE001','1','A','CSE'])
+    writer.writerow(['Riya','Das','cse_stu2@example.local','cse_stu2','changeme','USNCSE002','1','A','CSE'])
+    return response
+
+
+@csrf_exempt
+@require_auth(allowed=['ADMIN','HOD'])
+def students_bulk_upload(request):
+    """Accepts a CSV file (multipart/form-data) and enrolls students in bulk.
+
+    Expected CSV headers: first_name,last_name,email,username,password,usn,semester,section,department_code
+    If department_code is omitted, HOD's department will be used.
+    """
+    if request.method != 'POST':
+        return _json({'error': 'method not allowed'}, status=405)
+    # file must be provided in 'file'
+    f = request.FILES.get('file') if hasattr(request, 'FILES') else None
+    if not f:
+        return _json({'error': 'file required (form field name: file)'}, status=400)
+    # read file as text
+    try:
+        data = f.read()
+        if isinstance(data, bytes):
+            text = data.decode('utf-8-sig')
+        else:
+            text = str(data)
+        reader = csv.DictReader(io.StringIO(text))
+    except Exception as e:
+        return _json({'error': 'failed to parse CSV', 'detail': str(e)}, status=400)
+
+    created = 0
+    skipped = 0
+    errors = []
+    user_req = request.request_user
+    # determine default department for HOD
+    default_dept = None
+    if user_req.role == 'HOD':
+        default_dept = Department.objects.filter(hod=user_req).first()
+
+    for i, row in enumerate(reader, start=1):
+        try:
+            username = (row.get('username') or '').strip()
+            password = (row.get('password') or '').strip()
+            first_name = (row.get('first_name') or '').strip()
+            last_name = (row.get('last_name') or '').strip()
+            email = (row.get('email') or '').strip()
+            usn = (row.get('usn') or '').strip()
+            semester = int(row.get('semester') or 1)
+            section = (row.get('section') or 'A').strip()
+            dept_code = (row.get('department_code') or '').strip()
+
+            if not username or not password:
+                errors.append({'row': i, 'error': 'username and password required'})
+                skipped += 1
+                continue
+
+            if User.objects.filter(username=username).exists():
+                errors.append({'row': i, 'error': 'username exists'})
+                skipped += 1
+                continue
+
+            # find department
+            dept = None
+            if dept_code:
+                dept = Department.objects.filter(code__iexact=dept_code).first()
+            if not dept:
+                dept = default_dept
+            if not dept:
+                errors.append({'row': i, 'error': 'department_code required (or HOD must have a department)'} )
+                skipped += 1
+                continue
+
+            # HOD may only create in their department
+            if user_req.role == 'HOD' and dept.hod != user_req:
+                errors.append({'row': i, 'error': 'forbidden department for this HOD'})
+                skipped += 1
+                continue
+
+            user = User.objects.create(username=username, first_name=first_name, last_name=last_name, email=email or '', password=make_password(password), role='STUDENT')
+            Student.objects.create(user=user, usn=usn or f"USN{user.id}", department=dept, semester=semester, section=section, phone='', address='', admission_date=date.today())
+            created += 1
+        except Exception as e:
+            errors.append({'row': i, 'error': str(e)})
+            skipped += 1
+
+    return _json({'created': created, 'skipped': skipped, 'errors': errors})
+
+
+@csrf_exempt
+@require_auth(allowed=['ADMIN','HOD'])
+def students_bulk_delete(request):
+    """Delete multiple students. Expects JSON: { ids: [student_id, ...] }
+    HOD may only delete students in their department.
+    """
+    if request.method != 'POST':
+        return _json({'error': 'method not allowed'}, status=405)
+    try:
+        data = json.loads(request.body)
+    except Exception:
+        return _json({'error': 'invalid json'}, status=400)
+    ids = data.get('ids') or []
+    if not isinstance(ids, list) or not ids:
+        return _json({'error': 'ids must be a non-empty list'}, status=400)
+    user_req = request.request_user
+    deleted = 0
+    failed = []
+    for sid in ids:
+        try:
+            st = Student.objects.filter(id=int(sid)).select_related('user','department').first()
+            if not st:
+                failed.append({'id': sid, 'error': 'not found'})
+                continue
+            if user_req.role == 'HOD':
+                dept = Department.objects.filter(hod=user_req).first()
+                if not dept or st.department != dept:
+                    failed.append({'id': sid, 'error': 'forbidden'})
+                    continue
+            st.user.delete()
+            deleted += 1
+        except Exception as e:
+            failed.append({'id': sid, 'error': str(e)})
+    return _json({'deleted': deleted, 'failed': failed})
 
 
 @csrf_exempt
